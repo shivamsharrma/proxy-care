@@ -174,9 +174,8 @@ void main() {
       respondProblem('UNAUTHENTICATED', status: 401),
     ]);
     await tester.runAsync(
-      () => app.container
-          .read(apiClientProvider)
-          .get('/me', decode: ignoreBody),
+      () =>
+          app.container.read(apiClientProvider).get('/me', decode: ignoreBody),
     );
     expect(app.http.requests.map((r) => r.headers['Authorization']), [
       'Bearer old',

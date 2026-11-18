@@ -53,8 +53,7 @@ final class _DedupingSession extends FakeAuthenticationSession {
   return (DioApiClient(dio), adapter);
 }
 
-FakeResponder _unauthorized() =>
-    respondProblem('UNAUTHENTICATED', status: 401);
+FakeResponder _unauthorized() => respondProblem('UNAUTHENTICATED', status: 401);
 
 FakeResponder _ok() => respondJson(dataBody(null));
 
