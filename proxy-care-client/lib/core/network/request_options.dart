@@ -55,6 +55,7 @@ final class ApiRequestOptions {
     this.cancellation,
     this.retry,
     this.idempotencyKey,
+    this.ifMatch,
     this.skipAuth = false,
   });
 
@@ -77,6 +78,12 @@ final class ApiRequestOptions {
   /// operation (`IdempotencyKey.generate()`) and reuse it when the user
   /// repeats the same operation.
   final String? idempotencyKey;
+
+  /// Sent as the `If-Match` header: the `ETag` of the version being
+  /// updated (`ApiResponse.etag` from the read, stored unchanged), or `*`.
+  /// Updates to versioned resources require it (ADR 0012): without it the
+  /// backend answers 428, with a stale one 412.
+  final String? ifMatch;
 
   /// Sends the request without an access token and keeps
   /// `AuthInterceptor` out of it (sign-in, token refresh).

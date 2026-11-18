@@ -71,7 +71,7 @@ Future<_App> _launch(
     token: token,
     tokenAfterRefresh: tokenAfterRefresh,
   )..currentState = auth;
-  final http = FakeHttpAdapter()..fallback = respondJson(successEnvelope(null));
+  final http = FakeHttpAdapter()..fallback = respondJson(dataBody(null));
   final container = await bootstrap(
     overrides: [
       authenticationSessionProvider.overrideWithValue(session),
@@ -171,12 +171,12 @@ void main() {
 
     // The API sees the token; a 401 is recovered by one refresh and replay.
     app.http.enqueue([
-      respondJson(errorEnvelope('UNAUTHENTICATED'), status: 401),
+      respondProblem('UNAUTHENTICATED', status: 401),
     ]);
     await tester.runAsync(
       () => app.container
           .read(apiClientProvider)
-          .get('/v1/me', decode: ignoreBody),
+          .get('/me', decode: ignoreBody),
     );
     expect(app.http.requests.map((r) => r.headers['Authorization']), [
       'Bearer old',
@@ -197,11 +197,11 @@ void main() {
     // Signed out, protected requests carry no token and fail as such.
     app.session.token = null;
     app.http.enqueue([
-      respondJson(errorEnvelope('UNAUTHENTICATED'), status: 401),
+      respondProblem('UNAUTHENTICATED', status: 401),
     ]);
     await tester.runAsync(
       () => expectLater(
-        app.container.read(apiClientProvider).get('/v1/me', decode: ignoreBody),
+        app.container.read(apiClientProvider).get('/me', decode: ignoreBody),
         throwsAppException<UnauthorizedException>(),
       ),
     );

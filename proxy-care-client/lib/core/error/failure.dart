@@ -117,7 +117,9 @@ final class ServerFailure extends AppFailure {
   bool get isRetryable => statusCode != null && statusCode! >= 500;
 }
 
-/// The data changed on the server meanwhile (HTTP 409, `CONFLICT`).
+/// The data changed on the server meanwhile: HTTP 409 (`CONFLICT`) or 412
+/// (`PRECONDITION_FAILED`, the `If-Match` ETag is stale). Reload the
+/// resource, with its new `ETag`, before trying again.
 final class ConflictFailure extends AppFailure {
   /// Creates a conflict failure.
   const ConflictFailure(super.message, {super.code, super.cause});
@@ -138,7 +140,16 @@ final class BusinessRuleFailure extends AppFailure {
 /// Too many requests (HTTP 429, `RATE_LIMITED`).
 final class RateLimitedFailure extends AppFailure {
   /// Creates a rate-limited failure.
-  const RateLimitedFailure(super.message, {super.code, super.cause});
+  const RateLimitedFailure(
+    super.message, {
+    this.retryAfter,
+    super.code,
+    super.cause,
+  });
+
+  /// How long to wait before trying again (`Retry-After`), or null when
+  /// the backend did not say.
+  final Duration? retryAfter;
 
   @override
   bool get isRetryable => true;
@@ -147,7 +158,16 @@ final class RateLimitedFailure extends AppFailure {
 /// The service is down or overloaded (HTTP 503, `SERVICE_UNAVAILABLE`).
 final class ServiceUnavailableFailure extends AppFailure {
   /// Creates a service-unavailable failure.
-  const ServiceUnavailableFailure(super.message, {super.code, super.cause});
+  const ServiceUnavailableFailure(
+    super.message, {
+    this.retryAfter,
+    super.code,
+    super.cause,
+  });
+
+  /// How long to wait before trying again (`Retry-After`), or null when
+  /// the backend did not say.
+  final Duration? retryAfter;
 
   @override
   bool get isRetryable => true;

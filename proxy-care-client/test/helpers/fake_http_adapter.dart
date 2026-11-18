@@ -115,24 +115,71 @@ FakeResponder respondBytes(
 FakeResponder failWith(DioExceptionType type) =>
     (options) => throw DioException(requestOptions: options, type: type);
 
-/// The standard success envelope around [data].
-Map<String, Object?> successEnvelope(
-  Object? data, {
-  Map<String, Object?> meta = const {},
-}) => {'success': true, 'data': data, 'error': null, 'meta': meta};
-
-/// The standard error envelope.
-Map<String, Object?> errorEnvelope(
-  String code, {
-  String message = 'Backend message',
-  Map<String, List<String>>? fieldErrors,
-  String? correlationId,
-}) => {
-  'success': false,
-  'data': null,
-  'error': {'code': code, 'message': message, 'fieldErrors': ?fieldErrors},
-  'meta': {
-    'timestamp': '2026-11-14T10:00:00Z',
-    'correlationId': ?correlationId,
-  },
+/// A success body (ADR 0012) around [data]: `{"data": …}`, plus `page`
+/// when [page] is given (a collection).
+Map<String, Object?> dataBody(Object? data, {Map<String, Object?>? page}) => {
+  'data': data,
+  'page': ?page,
 };
+
+/// The `page` object of a collection response.
+Map<String, Object?> pageMeta({
+  String? nextCursor,
+  bool? hasMore,
+  int size = 20,
+}) => {
+  'nextCursor': nextCursor,
+  'hasMore': hasMore ?? nextCursor != null,
+  'size': size,
+};
+
+/// An RFC 9457 problem details body as the backend sends it (ADR 0012).
+/// [errors] are `{field, code, message}` entries.
+Map<String, Object?> problemBody(
+  String? code, {
+  int status = 500,
+  String detail = 'Backend detail',
+  List<Map<String, Object?>>? errors,
+  String? traceId,
+}) => {
+  'type': 'urn:proxycare:problem:${code?.toLowerCase() ?? 'unknown'}',
+  'title': 'Backend title',
+  'status': status,
+  'detail': detail,
+  'instance': '/api/v1/items',
+  'code': ?code,
+  'traceId': ?traceId,
+  'timestamp': '2026-11-18T09:30:00Z',
+  'errors': ?errors,
+};
+
+/// One `errors` entry of a problem.
+Map<String, Object?> fieldError(
+  String field,
+  String message, {
+  String code = 'Invalid',
+}) => {'field': field, 'code': code, 'message': message};
+
+/// Responds with a problem details body for [code], sent as
+/// `application/problem+json` with [status].
+FakeResponder respondProblem(
+  String? code, {
+  required int status,
+  String detail = 'Backend detail',
+  List<Map<String, Object?>>? errors,
+  String? traceId,
+  Map<String, List<String>> headers = const {},
+}) => respondJson(
+  problemBody(
+    code,
+    status: status,
+    detail: detail,
+    errors: errors,
+    traceId: traceId,
+  ),
+  status: status,
+  headers: {
+    Headers.contentTypeHeader: ['application/problem+json'],
+    ...headers,
+  },
+);

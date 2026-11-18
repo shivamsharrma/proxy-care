@@ -34,7 +34,7 @@ packages: add one only when these cannot express a test.
 | --- | --- |
 | A configured container | `createTestContainer(env:, overrides:)` (`helpers/provider_container.dart`): wired like the app, disposed after the test |
 | Test configuration | `testEnv(...)` (`fixtures/env_fixtures.dart`): a valid development `Env`; override only what the test cares about |
-| HTTP responses | `FakeHttpAdapter` with `respondJson`, `successEnvelope`, `errorEnvelope`; it records every attempt (`requests`) |
+| HTTP responses | `FakeHttpAdapter` with `respondJson`, `dataBody`, `pageMeta`, `respondProblem`, `problemBody`, `fieldError`; it records every attempt (`requests`) |
 | The networking stack | `NetworkHarness` (`helpers/network_harness.dart`) |
 | Token storage | `FakeSecureKeyValueStore` (`helpers/auth_fakes.dart`), with switchable read, write and delete failures |
 | A session | `FakeAuthenticationSession` (`emit`, `token`, `tokenAfterRefresh`, `refreshes`), `MockGoTrueClient`, `fakeSession`, `fakeJwt` |

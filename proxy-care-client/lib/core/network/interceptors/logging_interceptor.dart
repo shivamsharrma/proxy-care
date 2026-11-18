@@ -5,7 +5,7 @@ import '../request_options.dart';
 
 /// Writes one line per request attempt: method, endpoint path, status (or
 /// failure type) and duration, e.g.
-/// `GET /v1/bookings → 200 in 182 ms [3b24…]`.
+/// `GET /api/v1/bookings → 200 in 182 ms [3b24…]`.
 ///
 /// Privacy: the line never contains the host, query values, headers or
 /// bodies, so no credentials or healthcare information reach the log.

@@ -54,9 +54,9 @@ final class _DedupingSession extends FakeAuthenticationSession {
 }
 
 FakeResponder _unauthorized() =>
-    respondJson(errorEnvelope('UNAUTHENTICATED'), status: 401);
+    respondProblem('UNAUTHENTICATED', status: 401);
 
-FakeResponder _ok() => respondJson(successEnvelope(null));
+FakeResponder _ok() => respondJson(dataBody(null));
 
 /// 401 unless the request carries [token].
 FakeResponder _acceptsOnly(String token) => (options) {
@@ -77,7 +77,7 @@ void main() {
       _acceptsOnly('newer'),
     ]);
 
-    await client.get('/v1/me', decode: ignoreBody);
+    await client.get('/me', decode: ignoreBody);
 
     expect(session.refreshes, 0);
     expect(adapter.requests.last.headers['Authorization'], 'Bearer newer');
@@ -89,9 +89,9 @@ void main() {
     adapter.fallback = _acceptsOnly('new');
 
     await Future.wait([
-      client.get('/v1/a', decode: ignoreBody),
-      client.get('/v1/b', decode: ignoreBody),
-      client.get('/v1/c', decode: ignoreBody),
+      client.get('/a', decode: ignoreBody),
+      client.get('/b', decode: ignoreBody),
+      client.get('/c', decode: ignoreBody),
     ]);
 
     expect(session.refreshes, 1);
@@ -111,7 +111,7 @@ void main() {
     adapter.fallback = _unauthorized();
 
     return expectLater(
-      client.get('/v1/restricted', decode: ignoreBody),
+      client.get('/restricted', decode: ignoreBody),
       throwsA(isA<UnauthorizedException>()),
     ).then((_) {
       expect(adapter.requests, hasLength(2), reason: 'one replay, no loop');
@@ -155,7 +155,7 @@ void main() {
       final (client, adapter) = _stack(session);
       adapter.fallback = _acceptsOnly(renewed.accessToken);
 
-      await client.get('/v1/me', decode: ignoreBody);
+      await client.get('/me', decode: ignoreBody);
 
       verify(() => auth.refreshSession()).called(1);
       expect(adapter.requests, hasLength(2));
@@ -173,8 +173,8 @@ void main() {
         final (client, adapter) = _stack(session);
         adapter.fallback = _acceptsOnly(renewed.accessToken);
 
-        await client.get('/v1/me', decode: ignoreBody);
-        await client.get('/v1/bookings', decode: ignoreBody);
+        await client.get('/me', decode: ignoreBody);
+        await client.get('/bookings', decode: ignoreBody);
 
         verify(() => auth.refreshSession()).called(1);
         expect(adapter.requests.map((r) => r.headers['Authorization']), [
@@ -197,7 +197,7 @@ void main() {
       adapter.fallback = _unauthorized();
 
       await expectLater(
-        client.get('/v1/me', decode: ignoreBody),
+        client.get('/me', decode: ignoreBody),
         throwsA(isA<UnauthorizedException>()),
       );
       expect(session.currentState, isA<SessionExpired>());
@@ -210,7 +210,7 @@ void main() {
       final (client, adapter) = _stack(session);
       adapter.fallback = _ok();
 
-      await client.get('/v1/public-ish', decode: ignoreBody);
+      await client.get('/public-ish', decode: ignoreBody);
 
       expect(
         adapter.requests.single.headers.containsKey('Authorization'),
@@ -229,7 +229,7 @@ void main() {
         adapter: adapter,
       ).create();
 
-      await DioApiClient(dio).get('/v1/me', decode: ignoreBody);
+      await DioApiClient(dio).get('/me', decode: ignoreBody);
 
       expect(lines.join('\n'), isNot(contains(current!.accessToken)));
       expect(dio, isA<Dio>());

@@ -49,36 +49,51 @@ extension AppExceptionToFailure on AppException {
 
 /// Splits server-side exceptions into the failures screens distinguish.
 /// The HTTP status decides first; the backend code decides only what the
-/// status leaves open.
+/// status leaves open. A 428 (`PRECONDITION_REQUIRED`: the client did not
+/// send `If-Match`) is a client bug and stays a [ServerFailure].
 AppFailure _serverFailure(ServerException exception) {
-  final ServerException(:message, :statusCode, :code, :cause) = exception;
+  final ServerException(:message, :statusCode, :code, :retryAfter, :cause) =
+      exception;
   if (exception.invalidResponse) {
     return ServerFailure(message, statusCode: statusCode, cause: cause);
   }
   switch (statusCode) {
-    case 409:
+    case 409 || 412:
       return ConflictFailure(message, code: code, cause: cause);
     case 429:
-      return RateLimitedFailure(message, code: code, cause: cause);
+      return RateLimitedFailure(
+        message,
+        retryAfter: retryAfter,
+        code: code,
+        cause: cause,
+      );
     case 503:
-      return ServiceUnavailableFailure(message, code: code, cause: cause);
+      return ServiceUnavailableFailure(
+        message,
+        retryAfter: retryAfter,
+        code: code,
+        cause: cause,
+      );
   }
   final isServerSide = statusCode != null && statusCode >= 500;
   return switch (exception.errorCode) {
     BackendErrorCode.businessRuleViolation when !isServerSide =>
       BusinessRuleFailure(message, code: code, cause: cause),
-    BackendErrorCode.conflict when !isServerSide => ConflictFailure(
+    BackendErrorCode.conflict ||
+    BackendErrorCode.preconditionFailed when !isServerSide => ConflictFailure(
       message,
       code: code,
       cause: cause,
     ),
     BackendErrorCode.rateLimited when !isServerSide => RateLimitedFailure(
       message,
+      retryAfter: retryAfter,
       code: code,
       cause: cause,
     ),
     BackendErrorCode.serviceUnavailable => ServiceUnavailableFailure(
       message,
+      retryAfter: retryAfter,
       code: code,
       cause: cause,
     ),

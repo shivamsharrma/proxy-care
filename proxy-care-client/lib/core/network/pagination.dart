@@ -1,67 +1,77 @@
+import '../error/app_exception.dart';
 import 'api_response.dart';
 
-/// A request for one page of a cursor-paginated list.
-///
-/// The backend standard is cursor pagination; the exact parameter and
-/// field names are not in the API contract yet, so they are configurable
-/// here and the defaults (`cursor`, `limit`; `meta.nextCursor`) are
-/// provisional.
+/// A request for one page of a cursor-paginated collection (ADR 0012):
+/// `?cursor=<opaque>&size=<n>`.
 final class PageRequest {
   /// Creates a page request. A null [cursor] asks for the first page.
-  const PageRequest({
-    this.cursor,
-    this.limit = defaultLimit,
-    this.cursorParameter = 'cursor',
-    this.limitParameter = 'limit',
-  }) : assert(limit > 0, 'limit must be positive');
+  const PageRequest({this.cursor, this.size = defaultSize})
+    : assert(size >= 1 && size <= maxSize, 'size must be 1 to 100');
 
-  /// Page size used when none is given.
-  static const int defaultLimit = 20;
+  /// Page size used when none is given (the backend's default too).
+  static const int defaultSize = 20;
 
-  /// Where to continue; null for the first page.
-  final String? cursor;
-
-  /// Maximum number of items.
-  final int limit;
+  /// Largest page size the backend accepts; a larger one is a 422.
+  static const int maxSize = 100;
 
   /// Query parameter that carries [cursor].
-  final String cursorParameter;
+  static const String cursorParameter = 'cursor';
 
-  /// Query parameter that carries [limit].
-  final String limitParameter;
+  /// Query parameter that carries [size].
+  static const String sizeParameter = 'size';
+
+  /// Where to continue: an opaque cursor from `page.nextCursor`, passed
+  /// back unchanged; null for the first page.
+  final String? cursor;
+
+  /// Maximum number of items, 1 to [maxSize].
+  final int size;
 
   /// The query parameters for this page.
   Map<String, Object> toQuery() => {
-    limitParameter: limit,
+    sizeParameter: size,
     cursorParameter: ?cursor,
   };
 
   /// The request for the page after [page], or null on the last page.
-  PageRequest? next(CursorPage<Object?> page) => page.hasMore
-      ? PageRequest(
-          cursor: page.nextCursor,
-          limit: limit,
-          cursorParameter: cursorParameter,
-          limitParameter: limitParameter,
-        )
-      : null;
+  PageRequest? next(CursorPage<Object?> page) => switch (page) {
+    CursorPage(hasMore: true, :final nextCursor?) => PageRequest(
+      cursor: nextCursor,
+      size: size,
+    ),
+    _ => null,
+  };
 }
 
 /// One page of items and where the next page starts.
 final class CursorPage<T> {
-  /// Creates a page.
-  const CursorPage({required this.items, this.nextCursor});
+  /// Creates a page. [hasMore] requires a [nextCursor].
+  const CursorPage({
+    required this.items,
+    this.nextCursor,
+    this.hasMore = false,
+  }) : assert(!hasMore || nextCursor != null, 'hasMore needs a nextCursor');
 
-  /// Builds a page from an enveloped response whose `data` is the list of
-  /// items and whose `meta` holds the next cursor under [nextCursorKey].
-  factory CursorPage.fromResponse(
-    ApiResponse<List<T>> response, {
-    String nextCursorKey = 'nextCursor',
-  }) {
-    final cursor = response.meta.raw[nextCursorKey];
+  /// Builds a page from a collection response: `data` holds the items and
+  /// `page` says whether and where the next page starts.
+  ///
+  /// Throws `ServerException.invalidResponse` when the response has no
+  /// `page` object. A `hasMore: true` without a cursor is read as the last
+  /// page, since there is no way to ask for the next one.
+  factory CursorPage.fromResponse(ApiResponse<List<T>> response) {
+    final page = response.page;
+    if (page == null) {
+      throw ServerException.invalidResponse(
+        message: 'Expected a collection response with a page object.',
+        statusCode: response.statusCode,
+      );
+    }
+    final cursor = page.nextCursor;
+    final next = cursor != null && cursor.isNotEmpty ? cursor : null;
     return CursorPage(
       items: response.data,
-      nextCursor: cursor is String && cursor.isNotEmpty ? cursor : null,
+      nextCursor: next,
+      hasMore: page.hasMore && next != null,
     );
   }
 
@@ -73,10 +83,10 @@ final class CursorPage<T> {
   final String? nextCursor;
 
   /// Whether another page follows.
-  bool get hasMore => nextCursor != null;
+  final bool hasMore;
 }
 
-/// Decodes a JSON list with [decodeItem], for paginated `data`.
+/// Decodes a JSON list with [decodeItem], for collection `data`.
 JsonDecoder<List<T>> listDecoder<T>(T Function(Object? json) decodeItem) =>
     (json) => List<T>.unmodifiable(
       (json! as List<Object?>).map(decodeItem),

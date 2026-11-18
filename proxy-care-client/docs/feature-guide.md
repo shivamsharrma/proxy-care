@@ -107,7 +107,7 @@ final class VisitRemoteDataSource {
 
   Future<List<VisitDto>> upcoming() async {
     final response = await _api.get(
-      '/v1/visits',
+      '/visits', // resolved under <API_BASE_URL>/api/v1
       query: {'status': 'upcoming'},
       decode: (json) => [
         for (final item in json! as List<Object?>)
@@ -254,7 +254,8 @@ element has a semantic label.
 Mirror the folders under `test/features/<feature>/` ([TESTING.md](../TESTING.md)):
 
 - mappers and use cases: plain unit tests;
-- data source: `FakeHttpAdapter` responses, including error envelopes;
+- data source: `FakeHttpAdapter` responses, including problem details
+  (`respondProblem`);
 - repository: success and every failure path (`isFailureOf<…>()`);
 - controller: `createTestContainer` with a fake repository
   (`test/features/<feature>/fakes.dart`);

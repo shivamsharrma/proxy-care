@@ -206,7 +206,7 @@ every API request that is not public. The backend must, on every request:
    tokens before they expire.
 6. Answer an invalid or expired token with 401 and a missing permission with
    403 (the client recovers once from a 401 and never retries a 403), using
-   the standard error envelope.
+   problem details (application/problem+json, backend ADR 0012).
 
 These are assumptions about the backend; no endpoint or authentication
 contract is defined in this repository.

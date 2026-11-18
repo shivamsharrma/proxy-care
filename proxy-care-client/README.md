@@ -210,22 +210,24 @@ are committed: after changing an annotated model or an ARB file run
 ## API integration
 
 Repositories call the backend through `ApiClient` (`apiClientProvider`),
-never Dio directly. The client unwraps the standard envelope
-`{success, data, error, meta}`, decodes `data` with a typed decoder, sends
+never Dio directly. Requests go to `<API_BASE_URL>/api/v1`. The client
+reads `{data}` / `{data, page}` success bodies (a 2xx is a success),
+decodes `data` with a typed decoder, maps RFC 9457 problem details to
+exceptions, exposes `ETag` and sends `If-Match`, sends
 JSON, supports multipart uploads, downloads, cursor pagination, idempotency
 keys and cancellation, and throws only `AppException`s. Interceptors, in
 order: correlation ID, logging (redacted), authentication (bearer token,
-one replay after a 401), retry (GET only on 502/503/504 and transient
-connection errors, bounded backoff). Details: ARCHITECTURE.md,
+one replay after a 401), retry (GET only on 502/503/504, 429 with
+`Retry-After`, and transient connection errors; bounded backoff that
+honours `Retry-After`). Details: ARCHITECTURE.md,
 "Networking".
 
 ## Error handling
 
 Infrastructure errors become `AppException`s in the data layer
-(`ErrorMapper` reads the backend codes: `VALIDATION_ERROR`,
-`UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`,
-`BUSINESS_RULE_VIOLATION`, `RATE_LIMITED`, `REQUEST_TIMEOUT`,
-`INTERNAL_ERROR`, `SERVICE_UNAVAILABLE`); repositories return
+(`ErrorMapper` reads problem details and the backend codes of ADR
+0012, falling back to the HTTP status for an unknown code); repositories
+return
 `Result<T>` with typed `AppFailure`s (`guardResult`); presentation maps
 failures to localized messages (`failureMessage`). Uncaught errors go to
 the `ErrorReporter` and a privacy-safe `CrashReporter` (no-op until a
@@ -365,6 +367,6 @@ workflows: `pages.yml` (widget showcase on GitHub Pages) and `goldens.yml`
 | Flutter's built-in Material icons | Implemented |
 | Provisional breakpoints: compact < 600dp, tablet ≥ 600dp, 720dp max content width | Implemented in `PcBreakpoints` |
 | Light theme only | Implemented |
-| Standard backend error envelope and codes | Implemented in `ErrorMapper` |
+| Backend problem details (RFC 9457) and codes, ADR 0012 | Implemented in `ErrorMapper` |
 | Vendor-independent crash reporter, no-op for the MVP (Crashlytics is LL-05) | Implemented |
 | Localized user-facing error messages (ARB, English) | Implemented in `core/l10n` |

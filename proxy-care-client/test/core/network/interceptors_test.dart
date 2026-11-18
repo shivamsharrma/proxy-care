@@ -14,10 +14,10 @@ import 'package:proxy_care_client/core/security/redactor.dart';
 import '../../helpers/fake_http_adapter.dart';
 import '../../helpers/network_harness.dart';
 
-FakeResponder _ok() => respondJson(successEnvelope(null));
+FakeResponder _ok() => respondJson(dataBody(null));
 
 FakeResponder _status(int status) =>
-    respondJson(errorEnvelope('INTERNAL_ERROR'), status: status);
+    respondProblem('INTERNAL_ERROR', status: status);
 
 void main() {
   group('AuthInterceptor', () {
@@ -27,7 +27,7 @@ void main() {
         responses: [_ok()],
       );
 
-      await harness.client.get('/v1/me', decode: ignoreBody);
+      await harness.client.get('/me', decode: ignoreBody);
 
       expect(
         harness.adapter.requests.single.headers['Authorization'],
@@ -38,7 +38,7 @@ void main() {
     test('sends no header when there is no token', () async {
       final harness = NetworkHarness(responses: [_ok()]);
 
-      await harness.client.get('/v1/me', decode: ignoreBody);
+      await harness.client.get('/me', decode: ignoreBody);
 
       expect(
         harness.adapter.requests.single.headers.containsKey('Authorization'),
@@ -53,7 +53,7 @@ void main() {
       );
 
       await harness.client.post(
-        '/v1/anything',
+        '/anything',
         decode: ignoreBody,
         options: const ApiRequestOptions(
           skipAuth: true,
@@ -70,13 +70,16 @@ void main() {
     test('configured public endpoints get no token', () async {
       final harness = NetworkHarness(
         tokens: FakeTokens(token: 'access-1'),
-        publicEndpoints: const PublicEndpoints(['/v1/status', '/v1/public/']),
+        publicEndpoints: const PublicEndpoints([
+          '/api/v1/status',
+          '/api/v1/public/',
+        ]),
         responses: [_ok(), _ok(), _ok()],
       );
 
-      await harness.client.get('/v1/status', decode: ignoreBody);
-      await harness.client.get('/v1/public/config', decode: ignoreBody);
-      await harness.client.get('/v1/status/details', decode: ignoreBody);
+      await harness.client.get('/status', decode: ignoreBody);
+      await harness.client.get('/public/config', decode: ignoreBody);
+      await harness.client.get('/status/details', decode: ignoreBody);
 
       final auth = [
         for (final r in harness.adapter.requests) r.headers['Authorization'],
@@ -109,7 +112,7 @@ void main() {
       );
 
       await harness.client.get(
-        '/v1/me',
+        '/me',
         query: {'expand': 'roles'},
         decode: ignoreBody,
         options: const ApiRequestOptions(headers: {'X-App-Version': '1'}),
@@ -135,7 +138,7 @@ void main() {
         responses: [_status(401), _ok()],
       );
 
-      await harness.client.get('/v1/me', decode: ignoreBody);
+      await harness.client.get('/me', decode: ignoreBody);
 
       expect(
         harness.adapter.requests.last.headers['Authorization'],
@@ -152,7 +155,7 @@ void main() {
       );
 
       await expectLater(
-        harness.client.get('/v1/me', decode: ignoreBody),
+        harness.client.get('/me', decode: ignoreBody),
         throwsA(isA<UnauthorizedException>()),
       );
       expect(tokens.recoveries, hasLength(1));
@@ -166,7 +169,7 @@ void main() {
       );
 
       await expectLater(
-        harness.client.get('/v1/me', decode: ignoreBody),
+        harness.client.get('/me', decode: ignoreBody),
         throwsA(isA<UnauthorizedException>()),
       );
       expect(harness.adapter.requests, hasLength(1));
@@ -179,7 +182,7 @@ void main() {
       );
 
       await expectLater(
-        harness.client.get('/v1/me', decode: ignoreBody),
+        harness.client.get('/me', decode: ignoreBody),
         throwsA(isA<UnauthorizedException>()),
       );
     });
@@ -192,7 +195,7 @@ void main() {
       );
 
       await expectLater(
-        harness.client.get('/v1/me', decode: ignoreBody),
+        harness.client.get('/me', decode: ignoreBody),
         throwsA(isA<UnauthorizedException>()),
       );
       expect(tokens.recoveries, hasLength(1));
@@ -207,13 +210,13 @@ void main() {
       );
 
       await expectLater(
-        harness.client.get('/v1/me', decode: ignoreBody),
+        harness.client.get('/me', decode: ignoreBody),
         throwsA(isA<UnauthorizedException>()),
       );
       tokens.token = 'old';
       await expectLater(
         harness.client.post(
-          '/v1/anything',
+          '/anything',
           decode: ignoreBody,
           options: const ApiRequestOptions(skipAuth: true),
         ),
@@ -230,7 +233,7 @@ void main() {
       );
 
       await expectLater(
-        harness.client.get('/v1/me', decode: ignoreBody),
+        harness.client.get('/me', decode: ignoreBody),
         throwsA(isA<ForbiddenException>()),
       );
       expect(tokens.recoveries, isEmpty);
@@ -245,7 +248,7 @@ void main() {
       );
 
       await harness.client.post(
-        '/v1/items',
+        '/items',
         body: const {'label': 'x'},
         decode: ignoreBody,
         options: const ApiRequestOptions(idempotencyKey: 'key-1'),
@@ -264,7 +267,7 @@ void main() {
       );
 
       await harness.client.upload(
-        '/v1/files',
+        '/files',
         files: [
           UploadFile(
             field: 'file',
@@ -290,7 +293,7 @@ void main() {
 
       await expectLater(
         harness.client.post(
-          '/v1/stream',
+          '/stream',
           body: Stream<List<int>>.value([1, 2, 3]),
           decode: ignoreBody,
           options: const ApiRequestOptions(
@@ -348,7 +351,7 @@ void main() {
       );
 
       await expectLater(
-        harness.client.get('/v1/visits', decode: ignoreBody),
+        harness.client.get('/visits', decode: ignoreBody),
         throwsA(isA<NetworkException>()),
       );
 
@@ -366,7 +369,7 @@ void main() {
           responses: [_status(status), _status(status), _ok()],
         );
 
-        await harness.client.get('/v1/visits', decode: ignoreBody);
+        await harness.client.get('/visits', decode: ignoreBody);
 
         expect(harness.adapter.requests, hasLength(3));
       });
@@ -377,17 +380,108 @@ void main() {
         responses: [failWith(DioExceptionType.connectionTimeout), _ok()],
       );
 
-      await harness.client.get('/v1/visits', decode: ignoreBody);
+      await harness.client.get('/visits', decode: ignoreBody);
 
       expect(harness.adapter.requests, hasLength(2));
     });
 
-    for (final status in [400, 401, 404, 409, 500]) {
+    for (final (status, code) in [
+      (429, 'RATE_LIMITED'),
+      (503, 'SERVICE_UNAVAILABLE'),
+    ]) {
+      test('waits out Retry-After on a $status before retrying', () async {
+        final harness = NetworkHarness(
+          responses: [
+            respondProblem(
+              code,
+              status: status,
+              headers: {
+                'Retry-After': ['3'],
+              },
+            ),
+            _ok(),
+          ],
+        );
+
+        await harness.client.get('/visits', decode: ignoreBody);
+
+        expect(harness.adapter.requests, hasLength(2));
+        expect(harness.delays, const [Duration(seconds: 3)]);
+      });
+    }
+
+    test('a Retry-After shorter than the backoff keeps the backoff', () async {
+      final harness = NetworkHarness(
+        responses: [
+          respondProblem(
+            'SERVICE_UNAVAILABLE',
+            status: 503,
+            headers: {
+              'Retry-After': ['0'],
+            },
+          ),
+          _ok(),
+        ],
+      );
+
+      await harness.client.get('/visits', decode: ignoreBody);
+
+      expect(harness.delays, const [Duration(milliseconds: 500)]);
+    });
+
+    test('a Retry-After beyond the limit is returned, not waited', () async {
+      final harness = NetworkHarness(
+        responses: [
+          respondProblem(
+            'RATE_LIMITED',
+            status: 429,
+            headers: {
+              'Retry-After': ['120'],
+            },
+          ),
+        ],
+      );
+
+      await expectLater(
+        harness.client.get('/visits', decode: ignoreBody),
+        throwsA(
+          isA<ServerException>().having(
+            (e) => e.retryAfter,
+            'retryAfter',
+            const Duration(minutes: 2),
+          ),
+        ),
+      );
+      expect(harness.adapter.requests, hasLength(1));
+      expect(harness.delays, isEmpty);
+    });
+
+    test('Retry-After does not make a write retryable', () async {
+      final harness = NetworkHarness(
+        responses: [
+          respondProblem(
+            'SERVICE_UNAVAILABLE',
+            status: 503,
+            headers: {
+              'Retry-After': ['1'],
+            },
+          ),
+        ],
+      );
+
+      await expectLater(
+        harness.client.post('/payments', decode: ignoreBody),
+        throwsA(isA<ServerException>()),
+      );
+      expect(harness.adapter.requests, hasLength(1));
+    });
+
+    for (final status in [400, 401, 404, 409, 412, 428, 429, 500]) {
       test('does not retry HTTP $status', () async {
         final harness = NetworkHarness(responses: [_status(status)]);
 
         await expectLater(
-          harness.client.get('/v1/visits', decode: ignoreBody),
+          harness.client.get('/visits', decode: ignoreBody),
           throwsA(isA<AppException>()),
         );
         expect(harness.adapter.requests, hasLength(1));
@@ -400,7 +494,7 @@ void main() {
       );
 
       await expectLater(
-        harness.client.get('/v1/visits', decode: ignoreBody),
+        harness.client.get('/visits', decode: ignoreBody),
         throwsA(isA<TimeoutException>()),
       );
       expect(harness.adapter.requests, hasLength(1));
@@ -411,10 +505,10 @@ void main() {
         final harness = NetworkHarness(responses: [_status(503)]);
 
         final call = switch (method) {
-          'POST' => harness.client.post('/v1/x', decode: ignoreBody),
-          'PUT' => harness.client.put('/v1/x', decode: ignoreBody),
-          'PATCH' => harness.client.patch('/v1/x', decode: ignoreBody),
-          _ => harness.client.delete('/v1/x', decode: ignoreBody),
+          'POST' => harness.client.post('/x', decode: ignoreBody),
+          'PUT' => harness.client.put('/x', decode: ignoreBody),
+          'PATCH' => harness.client.patch('/x', decode: ignoreBody),
+          _ => harness.client.delete('/x', decode: ignoreBody),
         };
         await expectLater(call, throwsA(isA<ServerException>()));
         expect(harness.adapter.requests, hasLength(1));
@@ -425,7 +519,7 @@ void main() {
       final harness = NetworkHarness(responses: [_status(503), _ok()]);
 
       await harness.client.post(
-        '/v1/payments',
+        '/payments',
         decode: ignoreBody,
         options: const ApiRequestOptions(
           retry: RetryPolicy.always,
@@ -443,7 +537,7 @@ void main() {
 
       await expectLater(
         harness.client.get(
-          '/v1/visits',
+          '/visits',
           decode: ignoreBody,
           options: const ApiRequestOptions(retry: RetryPolicy.never),
         ),
@@ -459,7 +553,7 @@ void main() {
 
       await expectLater(
         harness.client.get(
-          '/v1/visits',
+          '/visits',
           decode: ignoreBody,
           options: const ApiRequestOptions(retry: RetryPolicy(maxRetries: 1)),
         ),
@@ -474,7 +568,7 @@ void main() {
       );
 
       await expectLater(
-        harness.client.get('/v1/visits', decode: ignoreBody),
+        harness.client.get('/visits', decode: ignoreBody),
         throwsA(isA<CancelledException>()),
       );
       expect(harness.adapter.requests, hasLength(1));
@@ -486,7 +580,7 @@ void main() {
         responses: [_status(503), _status(502), _ok()],
       );
 
-      await harness.client.get('/v1/visits', decode: ignoreBody);
+      await harness.client.get('/visits', decode: ignoreBody);
 
       final ids = harness.adapter.requests
           .map((r) => r.headers['X-Correlation-Id'])
@@ -504,7 +598,7 @@ void main() {
         responses: [_status(401), _status(503), _ok()],
       );
 
-      await harness.client.get('/v1/me', decode: ignoreBody);
+      await harness.client.get('/me', decode: ignoreBody);
 
       expect(harness.adapter.requests, hasLength(3));
       expect(tokens.recoveries, hasLength(1));
@@ -515,7 +609,7 @@ void main() {
 
       await expectLater(
         harness.client.post(
-          '/v1/stream',
+          '/stream',
           body: Stream<List<int>>.value([1]),
           decode: ignoreBody,
           options: const ApiRequestOptions(
@@ -578,13 +672,13 @@ void main() {
         tokens: FakeTokens(token: 'secret-token'),
         responses: [
           respondJson(
-            successEnvelope({'patientName': 'Kamla Devi', 'age': 72}),
+            dataBody({'patientName': 'Kamla Devi', 'age': 72}),
           ),
         ],
       );
 
       await harness.client.get(
-        '/v1/patients',
+        '/patients',
         query: {'name': 'Kamla'},
         decode: ignoreBody,
       );
@@ -593,7 +687,7 @@ void main() {
       expect(
         line,
         matches(
-          RegExp(r'^GET /v1/patients \[[0-9a-f-]{36}\] → 200 in \d+ ms$'),
+          RegExp(r'^GET /api/v1/patients \[[0-9a-f-]{36}\] → 200 in \d+ ms$'),
         ),
       );
       for (final secret in ['secret-token', 'Kamla', 'api.proxycare']) {
@@ -607,7 +701,7 @@ void main() {
       );
 
       await expectLater(
-        harness.client.get('/v1/visits', decode: ignoreBody),
+        harness.client.get('/visits', decode: ignoreBody),
         throwsA(isA<TimeoutException>()),
       );
 
@@ -622,7 +716,7 @@ void main() {
       );
 
       await harness.client.get(
-        '/v1/patients',
+        '/patients',
         query: {'mobile': '9876543210'},
         decode: ignoreBody,
         options: const ApiRequestOptions(
@@ -642,7 +736,7 @@ void main() {
       final lines = <String>[];
       final interceptor = LoggingInterceptor(log: lines.add, detailed: true);
       final options = RequestOptions(
-        path: '/v1/me',
+        path: '/me',
         headers: {'Authorization': 'Bearer abc'},
       );
 
@@ -656,7 +750,7 @@ void main() {
       var now = DateTime(2026, 11, 14, 10);
       final lines = <String>[];
       final interceptor = LoggingInterceptor(log: lines.add, clock: () => now);
-      final options = RequestOptions(path: '/v1/me', method: 'GET');
+      final options = RequestOptions(path: '/me', method: 'GET');
 
       interceptor.onRequest(options, RequestInterceptorHandler());
       now = now.add(const Duration(milliseconds: 182));
@@ -665,7 +759,7 @@ void main() {
         ResponseInterceptorHandler(),
       );
 
-      expect(lines.single, 'GET /v1/me → 200 in 182 ms');
+      expect(lines.single, 'GET /me → 200 in 182 ms');
     });
   });
 

@@ -52,8 +52,8 @@ void main() {
       Uri.parse('https://api.proxycare.test'),
     );
 
-    test('use the environment base URL and the agreed timeouts', () {
-      expect(options.baseUrl, 'https://api.proxycare.test');
+    test('use the /api/v1 root of the base URL and the agreed timeouts', () {
+      expect(options.baseUrl, 'https://api.proxycare.test/api/v1/');
       expect(options.connectTimeout, const Duration(seconds: 10));
       expect(options.receiveTimeout, const Duration(seconds: 30));
       expect(options.sendTimeout, const Duration(seconds: 30));
@@ -62,7 +62,39 @@ void main() {
     test('send and accept JSON by default', () {
       expect(options.contentType, Headers.jsonContentType);
       expect(options.responseType, ResponseType.json);
-      expect(options.headers['Accept'], 'application/json');
+      expect(
+        options.headers['Accept'],
+        'application/json, application/problem+json',
+      );
+    });
+
+    test('keep a path prefix of the base URL before /api/v1', () {
+      expect(
+        DioFactory.baseOptions(
+          Uri.parse('https://proxy.example/backend'),
+        ).baseUrl,
+        'https://proxy.example/backend/api/v1/',
+      );
+    });
+
+    test('resource paths resolve under /api/v1', () async {
+      final harness = NetworkHarness(
+        responses: [
+          respondJson(dataBody(null)),
+          respondJson(dataBody(null)),
+        ],
+      );
+
+      await harness.client.get('/patients/p1', decode: ignoreBody);
+      await harness.client.get('patients', decode: ignoreBody);
+
+      expect(
+        harness.adapter.requests.map((r) => r.uri.toString()),
+        [
+          'https://api.proxycare.test/api/v1/patients/p1',
+          'https://api.proxycare.test/api/v1/patients',
+        ],
+      );
     });
   });
 
@@ -123,10 +155,10 @@ void main() {
       () async {
         final harness = NetworkHarness(
           tokens: FakeTokens(token: 'access-1'),
-          responses: [respondJson(successEnvelope(null))],
+          responses: [respondJson(dataBody(null))],
         );
 
-        await harness.client.get('/v1/me', decode: ignoreBody);
+        await harness.client.get('/me', decode: ignoreBody);
 
         final sent = harness.adapter.requests.single;
         expect(sent.headers['Authorization'], 'Bearer access-1');
@@ -139,12 +171,12 @@ void main() {
       final harness = NetworkHarness(
         tokens: FakeTokens(token: 'old', recovered: 'new'),
         responses: [
-          respondJson(errorEnvelope('UNAUTHENTICATED'), status: 401),
-          respondJson(successEnvelope(null)),
+          respondProblem('UNAUTHENTICATED', status: 401),
+          respondJson(dataBody(null)),
         ],
       );
 
-      await harness.client.get('/v1/me', decode: ignoreBody);
+      await harness.client.get('/me', decode: ignoreBody);
 
       expect(harness.logs, hasLength(2));
       expect(harness.logs.first, contains('→ 401'));
@@ -156,14 +188,14 @@ void main() {
     test('is switched off for bodiless requests', () async {
       final harness = NetworkHarness(
         responses: [
-          respondJson(successEnvelope(null)),
-          respondJson(successEnvelope(null)),
+          respondJson(dataBody(null)),
+          respondJson(dataBody(null)),
         ],
       );
 
-      await harness.client.get('/v1/visits', decode: ignoreBody);
+      await harness.client.get('/visits', decode: ignoreBody);
       await harness.client.post(
-        '/v1/visits',
+        '/visits',
         body: const {'patientId': 'p1'},
         decode: ignoreBody,
       );
@@ -188,7 +220,7 @@ void main() {
     // Without Supabase settings, authentication is unconfigured.
     expect(await container.read(supabaseAuthClientProvider.future), isNull);
     final dio = container.read(dioProvider);
-    expect(dio.options.baseUrl, 'https://api.proxycare.test');
+    expect(dio.options.baseUrl, 'https://api.proxycare.test/api/v1/');
     expect(container.read(apiClientProvider), isA<DioApiClient>());
     expect(
       container.read(authenticationSessionProvider),

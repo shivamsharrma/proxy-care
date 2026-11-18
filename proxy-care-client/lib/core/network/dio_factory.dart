@@ -42,7 +42,8 @@ final class DioFactory {
     this.retryDelay,
   });
 
-  /// The environment's API base URL.
+  /// The environment's API base URL (`API_BASE_URL`, the host). Requests
+  /// go to [NetworkConfig.apiRoot] of it (`<baseUrl>/api/v1/`).
   final Uri baseUrl;
 
   /// Supplies the access token.
@@ -66,16 +67,16 @@ final class DioFactory {
   /// Replaces the retry backoff wait (tests).
   final RetryDelay? retryDelay;
 
-  /// The base options for [baseUrl]: timeouts, JSON content type and the
-  /// default headers.
+  /// The base options for [baseUrl]: the `/api/v1` root, timeouts, JSON
+  /// content type and the default headers.
   static BaseOptions baseOptions(Uri baseUrl) => BaseOptions(
-    baseUrl: baseUrl.toString(),
+    baseUrl: NetworkConfig.apiRoot(baseUrl).toString(),
     connectTimeout: NetworkConfig.connectTimeout,
     receiveTimeout: NetworkConfig.receiveTimeout,
     sendTimeout: NetworkConfig.sendTimeout,
     contentType: Headers.jsonContentType,
     responseType: ResponseType.json,
-    headers: {ApiHeaders.accept: ApiHeaders.json},
+    headers: {ApiHeaders.accept: ApiHeaders.acceptJson},
   );
 
   /// Creates a configured [Dio].

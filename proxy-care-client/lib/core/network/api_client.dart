@@ -5,13 +5,16 @@ import 'transfer.dart';
 /// The app's single entry point to the HTTP API, for the data layer.
 ///
 /// Every method:
-/// * resolves [path] against the environment's API base URL;
+/// * resolves [path], a resource path such as `/patients/p1`, under
+///   `<API_BASE_URL>/api/v1` (`NetworkConfig.apiRoot`); never repeat the
+///   prefix in [path];
 /// * returns the typed payload in an [ApiResponse], decoded by [decode]
-///   from the standard envelope's `data` or, with [ResponseFormat.raw],
-///   from the whole body;
-/// * throws only `AppException`s (never Dio types): network, HTTP and
-///   backend errors are mapped by `ErrorMapper`, unexpected shapes become
-///   `ServerException.invalidResponse`.
+///   from the body's `data` (a collection's `page` is on
+///   [ApiResponse.page]) or, with [ResponseFormat.raw], from the whole
+///   body; response headers such as `ETag` are on the [ApiResponse];
+/// * throws only `AppException`s (never Dio types): network errors and
+///   problem details (RFC 9457) are mapped by `ErrorMapper`, unexpected
+///   shapes become `ServerException.invalidResponse`.
 ///
 /// Repositories call it inside `guardResult`, which turns those exceptions
 /// into `AppFailure`s. Domain and presentation never see it.

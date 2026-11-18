@@ -1,78 +1,67 @@
 import 'dart:convert';
 
 import '../error/app_exception.dart';
-import '../error/backend_error_code.dart';
-import '../error/error_mapper.dart';
 import '../error/serialization.dart';
 import 'api_response.dart';
 
 /// Turns a successful HTTP response (2xx) into a typed [ApiResponse].
 ///
-/// * **Envelope** ([ResponseFormat.envelope]): `success: true` hands `data`
-///   to the decoder; `success: false` (an error inside a 2xx) is mapped like
-///   an error response, classified by its code; a body that is not an
-///   envelope is an invalid response.
+/// A 2xx is a success (ADR 0012); the body never carries an error.
+///
+/// * **Envelope** ([ResponseFormat.envelope]): a JSON object with `data`,
+///   handed to the decoder, and for a collection a `page` object
+///   (`nextCursor`, `hasMore`, `size`), returned as [ApiResponse.page]. A
+///   body without `data`, or with a malformed `page`, is an invalid
+///   response.
 /// * **Raw** ([ResponseFormat.raw]): the whole body goes to the decoder.
-/// * **Empty or null** body (for example 204 No Content): the decoder gets
-///   `null`, so a decoder for a nullable or `void` type succeeds and any
-///   other fails as an invalid response.
+/// * **Empty or null** body (204 No Content): the decoder gets `null`, so a
+///   decoder for a nullable or `void` type succeeds and any other fails as
+///   an invalid response.
 /// * A decoder that throws on an unexpected shape (`TypeError`,
 ///   `FormatException`, `CheckedFromJsonException`) produces
 ///   `ServerException.invalidResponse`.
 ///
-/// Error responses (non-2xx) never reach the parser: Dio rejects them and
-/// `ErrorMapper` reads their envelope.
+/// Response headers are kept on the [ApiResponse] (lower-case names) for
+/// `ETag` and `Location`. Error responses (non-2xx) never reach the parser:
+/// Dio rejects them and `ErrorMapper` reads their problem details.
 final class ResponseParser {
-  /// Creates a parser that maps `success: false` bodies with [errorMapper].
-  const ResponseParser({this.errorMapper = const ErrorMapper()});
+  /// Creates a parser.
+  const ResponseParser();
 
-  /// Maps error envelopes.
-  final ErrorMapper errorMapper;
-
-  /// Parses [body], received with [statusCode], into an [ApiResponse].
+  /// Parses [body], received with [statusCode] and [headers], into an
+  /// [ApiResponse].
   ApiResponse<T> parse<T>(
     Object? body,
     JsonDecoder<T> decode, {
     required int statusCode,
     ResponseFormat format = ResponseFormat.envelope,
+    Map<String, List<String>> headers = const {},
   }) {
+    final responseHeaders = _headers(headers);
     final payload = _isEmpty(body) ? null : body;
 
     if (format == ResponseFormat.raw || payload == null) {
       return ApiResponse(
         data: decodeResponse(() => decode(payload)),
         statusCode: statusCode,
+        headers: responseHeaders,
       );
     }
 
     final decoded = _decodeJsonText(payload);
-    if (decoded is! Map<Object?, Object?> || decoded['success'] is! bool) {
+    if (decoded is! Map<Object?, Object?> || !decoded.containsKey('data')) {
       throw ServerException.invalidResponse(
-        message: 'Expected the standard response envelope.',
+        message: 'Expected a {"data": …} response body.',
         statusCode: statusCode,
       );
     }
-    final envelope = decoded.cast<String, Object?>();
 
-    if (envelope['success'] != true) {
-      throw _errorInSuccessStatus(envelope);
-    }
-
-    final meta = _meta(envelope['meta']);
     return ApiResponse(
-      data: decodeResponse(() => decode(envelope['data'])),
+      data: decodeResponse(() => decode(decoded['data'])),
       statusCode: statusCode,
-      meta: meta,
+      page: _page(decoded['page'], statusCode),
+      headers: responseHeaders,
     );
-  }
-
-  /// `success: false` in a 2xx response: the transport status says nothing,
-  /// so the code's implied status classifies it.
-  AppException _errorInSuccessStatus(Map<String, Object?> envelope) {
-    final backend = errorMapper.parser(envelope);
-    final status =
-        BackendErrorCode.fromWire(backend.code)?.impliedStatus ?? 500;
-    return errorMapper.fromResponse(status, envelope);
   }
 
   /// A JSON body sent with a non-JSON content type arrives as text.
@@ -84,19 +73,34 @@ final class ResponseParser {
   static bool _isEmpty(Object? body) =>
       body == null || (body is String && body.trim().isEmpty);
 
-  static ResponseMeta _meta(Object? value) {
-    if (value is! Map<Object?, Object?>) return ResponseMeta.empty;
-    final meta = Map<String, Object?>.unmodifiable(
-      value.cast<String, Object?>(),
+  /// The `page` object, or null when the response has none.
+  static PageMetadata? _page(Object? value, int statusCode) {
+    if (value == null) return null;
+    if (value is Map<Object?, Object?>) {
+      final nextCursor = value['nextCursor'];
+      final hasMore = value['hasMore'];
+      final size = value['size'];
+      if (nextCursor is String? && hasMore is bool && size is int) {
+        return PageMetadata(
+          nextCursor: nextCursor,
+          hasMore: hasMore,
+          size: size,
+        );
+      }
+    }
+    throw ServerException.invalidResponse(
+      message: 'Malformed page object.',
+      statusCode: statusCode,
     );
-    String? text(String key) => switch (meta[key]) {
-      final String value => value,
-      _ => null,
-    };
-    return ResponseMeta(
-      correlationId: text('correlationId'),
-      timestamp: text('timestamp'),
-      raw: meta,
-    );
+  }
+
+  static Map<String, List<String>> _headers(
+    Map<String, List<String>> headers,
+  ) {
+    if (headers.isEmpty) return const {};
+    return Map.unmodifiable({
+      for (final MapEntry(:key, :value) in headers.entries)
+        key.toLowerCase(): List<String>.unmodifiable(value),
+    });
   }
 }

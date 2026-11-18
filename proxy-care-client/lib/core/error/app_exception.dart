@@ -20,7 +20,7 @@ sealed class AppException implements Exception {
     this.message, {
     this.statusCode,
     this.code,
-    this.correlationId,
+    this.traceId,
     this.cause,
   });
 
@@ -30,13 +30,14 @@ sealed class AppException implements Exception {
   /// HTTP status, when the error came from a response.
   final int? statusCode;
 
-  /// Machine-readable error code sent by the backend (`error.code`), as
-  /// sent. See [errorCode] for the standard codes.
+  /// Machine-readable error code sent by the backend (the problem's
+  /// `code`), as sent. See [errorCode] for the standard codes.
   final String? code;
 
-  /// The backend's `meta.correlationId`, for tracing a request in backend
-  /// logs.
-  final String? correlationId;
+  /// The problem's `traceId`: identifies the request in the backend's logs
+  /// and traces. Log it and quote it to support; never show it as an
+  /// error message.
+  final String? traceId;
 
   /// [code] as a standard [BackendErrorCode], or null if it is not one.
   BackendErrorCode? get errorCode => BackendErrorCode.fromWire(code);
@@ -67,13 +68,13 @@ final class UnauthorizedException extends AppException {
   const UnauthorizedException({
     String message = 'Authentication is required.',
     String? code,
-    String? correlationId,
+    String? traceId,
     Object? cause,
   }) : super(
          message,
          statusCode: 401,
          code: code,
-         correlationId: correlationId,
+         traceId: traceId,
          cause: cause,
        );
 }
@@ -84,13 +85,13 @@ final class ForbiddenException extends AppException {
   const ForbiddenException({
     String message = 'The action is not allowed.',
     String? code,
-    String? correlationId,
+    String? traceId,
     Object? cause,
   }) : super(
          message,
          statusCode: 403,
          code: code,
-         correlationId: correlationId,
+         traceId: traceId,
          cause: cause,
        );
 }
@@ -102,13 +103,13 @@ final class NotFoundException extends AppException {
     String message = 'The resource was not found.',
     int statusCode = 404,
     String? code,
-    String? correlationId,
+    String? traceId,
     Object? cause,
   }) : super(
          message,
          statusCode: statusCode,
          code: code,
-         correlationId: correlationId,
+         traceId: traceId,
          cause: cause,
        );
 }
@@ -116,8 +117,10 @@ final class NotFoundException extends AppException {
 /// The backend rejected the input (HTTP 400 / 422, or any 4xx that carries
 /// field errors).
 ///
-/// [fieldErrors] maps a field name to its messages, as sent by the backend.
-/// It is unmodifiable.
+/// [fieldErrors] maps a field name (a property path such as `patient.age`
+/// or `purposes[0]`; the empty string for an object-level error) to its
+/// messages, as sent by the backend in the problem's `errors`. It is
+/// unmodifiable.
 final class ValidationException extends AppException {
   /// Creates a validation exception. [fieldErrors] is copied.
   ValidationException({
@@ -125,7 +128,7 @@ final class ValidationException extends AppException {
     Map<String, List<String>> fieldErrors = const {},
     int? statusCode = 400,
     String? code,
-    String? correlationId,
+    String? traceId,
     Object? cause,
   }) : fieldErrors = Map.unmodifiable({
          for (final MapEntry(:key, :value) in fieldErrors.entries)
@@ -135,7 +138,7 @@ final class ValidationException extends AppException {
          message,
          statusCode: statusCode,
          code: code,
-         correlationId: correlationId,
+         traceId: traceId,
          cause: cause,
        );
 
@@ -144,22 +147,24 @@ final class ValidationException extends AppException {
 }
 
 /// The backend failed (HTTP 5xx), answered with a status that has no more
-/// specific type (409 conflict, 429 rate limited, a 4xx business-rule
-/// violation…), or sent a response the client could not read.
+/// specific type (409 conflict, 412 / 428 precondition, 429 rate limited, a
+/// 4xx business-rule violation…), or sent a response the client could not
+/// read.
 final class ServerException extends AppException {
   /// Creates a server exception.
   const ServerException({
     String message = 'The server failed to handle the request.',
     int? statusCode,
     String? code,
-    String? correlationId,
+    String? traceId,
     this.invalidResponse = false,
+    this.retryAfter,
     Object? cause,
   }) : super(
          message,
          statusCode: statusCode,
          code: code,
-         correlationId: correlationId,
+         traceId: traceId,
          cause: cause,
        );
 
@@ -178,6 +183,10 @@ final class ServerException extends AppException {
 
   /// Whether the response body could not be read (serialization error).
   final bool invalidResponse;
+
+  /// How long the backend asked the client to wait before trying again
+  /// (`Retry-After` on a 429 or 503), or null when it did not say.
+  final Duration? retryAfter;
 }
 
 /// The request or connection took too long (client timeouts, HTTP 408 and
@@ -188,13 +197,13 @@ final class TimeoutException extends AppException {
     String message = 'The request timed out.',
     int? statusCode,
     String? code,
-    String? correlationId,
+    String? traceId,
     Object? cause,
   }) : super(
          message,
          statusCode: statusCode,
          code: code,
-         correlationId: correlationId,
+         traceId: traceId,
          cause: cause,
        );
 }

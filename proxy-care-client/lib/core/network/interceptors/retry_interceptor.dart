@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
 
+import '../../error/error_mapper.dart';
 import '../network_config.dart';
 import '../request_options.dart';
 import '../request_replay.dart';
@@ -12,8 +13,15 @@ typedef RetryDelay = Future<void> Function(Duration delay);
 /// Retries requests that failed for a transient reason.
 ///
 /// Retried by default: **GET** requests that failed with a connection
-/// error or connection timeout, or with HTTP **502, 503 or 504**. Up to
-/// [maxRetries] retries, with exponential backoff ([baseDelay], doubling).
+/// error or connection timeout, or with HTTP **502, 503 or 504**, and a
+/// **429** that carries `Retry-After`. Up to [maxRetries] retries, with
+/// exponential backoff ([baseDelay], doubling).
+///
+/// `Retry-After` (seconds, on 429 and 503) is honoured: the wait before the
+/// retry is at least that long. A `Retry-After` longer than
+/// [maxRetryAfter] is not waited out: the error goes to the caller, whose
+/// exception carries it (`ServerException.retryAfter`). A 429 without
+/// `Retry-After` is not retried.
 ///
 /// Never retried: cancelled requests, 401 and 403 (and every other status),
 /// other methods (POST, PUT, PATCH, DELETE are not idempotent by default),
@@ -33,6 +41,7 @@ final class RetryInterceptor extends Interceptor {
     required this.dio,
     this.maxRetries = NetworkConfig.maxRetries,
     this.baseDelay = NetworkConfig.retryBaseDelay,
+    this.maxRetryAfter = NetworkConfig.maxRetryAfter,
     RetryDelay? delay,
   }) : _delay = delay ?? Future<void>.delayed;
 
@@ -47,7 +56,10 @@ final class RetryInterceptor extends Interceptor {
   /// Delay before the first retry.
   final Duration baseDelay;
 
-  static const Set<int> _retryableStatuses = {502, 503, 504};
+  /// The longest `Retry-After` this interceptor waits out.
+  final Duration maxRetryAfter;
+
+  static const Set<int> _retryableStatuses = {429, 502, 503, 504};
 
   /// The delay before retry number [retry] (1-based).
   Duration backoff(int retry) => baseDelay * math.pow(2, retry - 1).toInt();
@@ -68,9 +80,11 @@ final class RetryInterceptor extends Interceptor {
     final limit = policy?.maxRetries ?? maxRetries;
     var error = err;
     var retry = 0;
-    while (retry < limit && _shouldRetry(error, policy)) {
+    while (retry < limit) {
+      final wait = _waitBeforeRetry(error, policy, retry + 1);
+      if (wait == null) break;
       retry++;
-      await _delay(backoff(retry));
+      await _delay(wait);
       options.extra[RequestExtra.isRetry] = true;
       options.extra[RequestExtra.retryCount] = retry;
       // A body that cannot be sent twice ends the loop with the last error.
@@ -86,6 +100,26 @@ final class RetryInterceptor extends Interceptor {
     }
     options.extra.remove(RequestExtra.isRetry);
     handler.next(error);
+  }
+
+  /// How long to wait before retry number [retry] of the request that
+  /// failed with [error], or null if it must not be retried.
+  Duration? _waitBeforeRetry(
+    DioException error,
+    RetryPolicy? policy,
+    int retry,
+  ) {
+    if (!_shouldRetry(error, policy)) return null;
+    final delay = backoff(retry);
+    final status = error.response?.statusCode;
+    if (status != 429 && status != 503) return delay;
+
+    final retryAfter = parseRetryAfter(
+      error.response?.headers[ApiHeaders.retryAfter]?.firstOrNull,
+    );
+    if (retryAfter == null) return status == 429 ? null : delay;
+    if (retryAfter > maxRetryAfter) return null;
+    return retryAfter > delay ? retryAfter : delay;
   }
 
   bool _shouldRetry(DioException error, RetryPolicy? policy) {

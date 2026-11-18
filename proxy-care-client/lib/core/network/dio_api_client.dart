@@ -197,6 +197,7 @@ final class DioApiClient implements ApiClient {
       decode,
       statusCode: response.statusCode ?? 200,
       format: format,
+      headers: response.headers.map,
     );
   }
 
@@ -242,6 +243,7 @@ final class DioApiClient implements ApiClient {
       headers: {
         ...options.headers,
         ApiHeaders.idempotencyKey: ?options.idempotencyKey,
+        ApiHeaders.ifMatch: ?options.ifMatch,
       },
       receiveTimeout: options.receiveTimeout,
       // Without a body there is nothing to time out on, and on web Dio

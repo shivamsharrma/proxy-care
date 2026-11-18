@@ -6,7 +6,6 @@ import '../logging/app_logger.dart';
 import '../network/api_client.dart';
 import '../network/dio_api_client.dart';
 import '../network/dio_factory.dart';
-import '../network/response_parser.dart';
 import 'auth_providers.dart';
 import 'core_providers.dart';
 
@@ -29,10 +28,8 @@ final dioProvider = Provider<Dio>((ref) {
 
 /// The app's API client.
 final apiClientProvider = Provider<ApiClient>((ref) {
-  final errorMapper = ref.watch(errorMapperProvider);
   return DioApiClient(
     ref.watch(dioProvider),
-    errorMapper: errorMapper,
-    parser: ResponseParser(errorMapper: errorMapper),
+    errorMapper: ref.watch(errorMapperProvider),
   );
 });

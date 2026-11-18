@@ -10,7 +10,7 @@ import 'package:proxy_care_client/shared/models/result.dart';
 
 import '../../mocks/core_mocks.dart';
 
-final _options = RequestOptions(path: '/v1/me');
+final _options = RequestOptions(path: '/me');
 
 /// Casting this to `int` is a programming error (a `TypeError`).
 const Object _notAnInt = 'seven';
@@ -51,15 +51,18 @@ void main() {
             requestOptions: _options,
             statusCode: 422,
             data: {
-              'success': false,
-              'data': null,
-              'error': {
-                'code': 'VALIDATION_ERROR',
-                'message': 'Request validation failed',
-                'fieldErrors': {
-                  'mobile': ['Enter 10 digits'],
+              'type': 'urn:proxycare:problem:validation-error',
+              'title': 'Validation failed',
+              'status': 422,
+              'code': 'VALIDATION_ERROR',
+              'traceId': '4bf92f35',
+              'errors': [
+                {
+                  'field': 'mobile',
+                  'code': 'Pattern',
+                  'message': 'Enter 10 digits',
                 },
-              },
+              ],
             },
           ),
         ),
@@ -140,6 +143,10 @@ void main() {
         ValidationException(): ValidationFailure,
         const ServerException(): ServerFailure,
         const ServerException(statusCode: 409): ConflictFailure,
+        const ServerException(statusCode: 412): ConflictFailure,
+        const ServerException(statusCode: 428): ServerFailure,
+        const ServerException(statusCode: 400, code: 'PRECONDITION_FAILED'):
+            ConflictFailure,
         const ServerException(statusCode: 429): RateLimitedFailure,
         const ServerException(statusCode: 503): ServiceUnavailableFailure,
         const ServerException(statusCode: 500): ServerFailure,
@@ -187,6 +194,21 @@ void main() {
             .statusCode,
         500,
       );
+    });
+
+    test('keeps Retry-After on rate-limited and unavailable failures', () {
+      const wait = Duration(seconds: 30);
+
+      final limited =
+          const ServerException(statusCode: 429, retryAfter: wait).toFailure()
+              as RateLimitedFailure;
+      final unavailable =
+          const ServerException(statusCode: 503, retryAfter: wait).toFailure()
+              as ServiceUnavailableFailure;
+
+      expect(limited.retryAfter, wait);
+      expect(unavailable.retryAfter, wait);
+      expect(limited.isRetryable, isTrue);
     });
   });
 }
