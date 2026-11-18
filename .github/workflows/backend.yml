@@ -1,0 +1,59 @@
+name: Backend
+
+# Builds and tests proxy-care-backend: compile with -Werror, formatting, architecture
+# rules and all tests (Testcontainers uses the runner's Docker).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "proxy-care-backend/**"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    paths:
+      - "proxy-care-backend/**"
+      - ".github/workflows/backend.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: proxy-care-backend
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          validate-wrappers: true
+
+      - name: Build
+        run: ./gradlew clean build --no-daemon
+
+      - name: Upload test and coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-reports
+          path: |
+            proxy-care-backend/build/reports/
+            proxy-care-backend/build/spring-modulith-docs/
+          retention-days: 14

@@ -1,0 +1,31 @@
+# Production. Every value that differs per deployment comes from an environment variable.
+# Missing or unsafe values stop start-up (DeploymentConfigurationValidator).
+
+proxycare:
+  environment: production
+
+spring:
+  datasource:
+    # Must be a non-local jdbc:postgresql:// URL with sslmode=verify-full (ADR 0003).
+    url: ${PROXYCARE_DB_URL:}
+    username: ${PROXYCARE_DB_USERNAME:}
+    password: ${PROXYCARE_DB_PASSWORD:}
+  flyway:
+    # Migrations run as a separate deployment step with the migrator role (ADR 0003).
+    enabled: false
+
+management:
+  server:
+    port: ${PROXYCARE_MANAGEMENT_PORT:8081}
+
+# API documentation is not published in production (ADR 0005).
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+logging:
+  structured:
+    format:
+      console: ecs
