@@ -132,7 +132,7 @@ Where the patient live-location and "location" concerns sit (`dispatch` vs a sep
 | Migrations | Flyway owns the schema; forward-only; expand/contract; separate migrate step in deployed environments; Hibernate `validate` | [0003](adr/0003-database-and-migrations.md) |
 | Authentication | Spring Security resource server; Supabase JWKS (ES256); strict `iss`/`aud`/`role`/`exp`; stateless | [0004](adr/0004-authentication-and-authorization.md) |
 | Authorization | Roles and account status in the backend DB; per-resource checks in use cases; 404 for resources the caller may not see | [0004](adr/0004-authentication-and-authorization.md) |
-| API contract | Client's envelope and 10 error codes; `/v1`; camelCase; paise integers; cursor pagination; OpenAPI committed | [0005](adr/0005-api-and-error-contract.md) |
+| API contract | `/api/v1`; `{data}` / `{data, page}` bodies; RFC 9457 problem details with `code`, `traceId`, `errors`; cursor pagination (20/100); ETag + If-Match; 1 MB bodies; OpenAPI generated on every test run | [0012](adr/0012-api-contract-problem-details.md) |
 | Observability | Correlation id filter; JSON logs with no PII/tokens; OTel tracing; Prometheus metrics on management port | [0006](adr/0006-observability.md) |
 | Idempotency | `Idempotency-Key` store committed with the business change, plus domain uniqueness, plus vendor idempotency | [0007](adr/0007-idempotency-and-rate-limiting.md) |
 | Rate limiting | Edge per-IP + Bucket4j per-account (in-memory, Postgres-backed for money endpoints) | [0007](adr/0007-idempotency-and-rate-limiting.md) |
@@ -247,13 +247,14 @@ the open decisions are answered.
 | [0002](adr/0002-project-structure.md) | Project structure and module boundaries |
 | [0003](adr/0003-database-and-migrations.md) | Database, connections and migrations |
 | [0004](adr/0004-authentication-and-authorization.md) | Authentication and authorization |
-| [0005](adr/0005-api-and-error-contract.md) | API response and error contract |
+| [0005](adr/0005-api-and-error-contract.md) | API response and error contract (superseded by 0012) |
 | [0006](adr/0006-observability.md) | Logging, tracing and observability |
 | [0007](adr/0007-idempotency-and-rate-limiting.md) | Idempotency and rate limiting |
 | [0008](adr/0008-webhook-and-outbox.md) | Webhook intake and transactional outbox |
 | [0009](adr/0009-integration-architecture.md) | External integration architecture |
 | [0010](adr/0010-virtual-threads-and-test-platform.md) | Virtual threads enabled; JUnit Jupiter 6 |
 | [0011](adr/0011-testing-infrastructure.md) | Testing infrastructure |
+| [0012](adr/0012-api-contract-problem-details.md) | API contract: `/api/v1`, data envelopes, RFC 9457 problem details |
 
 New ADRs use the next number, the same headings (Context, Decision, Alternatives considered,
 Consequences) and are never rewritten once accepted: a changed decision gets a new ADR that

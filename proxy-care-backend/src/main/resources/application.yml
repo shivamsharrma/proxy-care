@@ -14,10 +14,12 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 30s
 
+  # JSON conventions, central for the whole API (ADR 0012): camelCase properties (Jackson's
+  # default), ISO-8601 UTC instants with an offset ("Z"), strict input.
   jackson:
     time-zone: UTC
     deserialization:
-      fail-on-unknown-properties: true # ADR 0005: typos must not be ignored
+      fail-on-unknown-properties: true # ADR 0012: typos must not be ignored
       fail-on-null-for-primitives: true
       accept-float-as-int: false # money is integer paise; 10.5 must not become 10
 
@@ -51,6 +53,18 @@ spring:
 
   transaction:
     default-timeout: 30s
+
+  mvc:
+    # GlobalExceptionHandler writes every problem response; Boot's own handler stays off.
+    problemdetails:
+      enabled: false
+  web:
+    resources:
+      # An API serves no static files; unknown paths become 404 problems.
+      add-mappings: false
+  servlet:
+    multipart:
+      enabled: false # ADR 0012: files go to Supabase Storage through signed URLs
 
   flyway:
     enabled: true
@@ -104,10 +118,19 @@ management:
 springdoc:
   api-docs:
     enabled: false
+    version: openapi_3_1
   swagger-ui:
     enabled: false
+  # Only the application's API under /api/v1 is documented (ADR 0012).
+  packages-to-scan: in.proxycare
+  paths-to-match: /api/v1/**
+  # Keep the shared contract schemas (PageMetadata...) even while no operation references them.
+  remove-broken-reference-definitions: false
 
 proxycare:
+  api:
+    max-request-body-size: 1MB # ADR 0012; larger bodies get 413
+    default-retry-after: 5s # Retry-After for 429/503 when the cause gives no better value
   jobs:
     enabled: true
   persistence:

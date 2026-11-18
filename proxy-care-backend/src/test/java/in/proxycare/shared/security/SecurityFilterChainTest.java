@@ -2,6 +2,8 @@ package in.proxycare.shared.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import in.proxycare.shared.error.ErrorCode;
+import in.proxycare.support.ApiAssertions;
 import in.proxycare.support.IntegrationTest;
 import in.proxycare.support.security.TestUser;
 import java.util.stream.Stream;
@@ -10,15 +12,16 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 /**
  * Example MockMvc test: requests go through the real security filter chain and dispatcher.
  *
- * <p>Pins today's deny-by-default chain. The authentication milestone adds JWT authentication;
- * these tests then change to 401 for anonymous callers and use {@link TestUser} for role and
- * ownership checks.
+ * <p>Pins today's deny-by-default chain and its problem responses (ADR 0012). The authentication
+ * milestone adds JWT authentication; these tests then use {@link TestUser} for role and ownership
+ * checks on real endpoints.
  */
 @IntegrationTest
 class SecurityFilterChainTest {
@@ -32,20 +35,37 @@ class SecurityFilterChainTest {
   }
 
   @Test
-  void anonymousRequestsAreRefused() {
-    assertThat(mvc.get().uri("/v1/me")).hasStatus(HttpStatus.FORBIDDEN);
+  void anonymousRequestsGetA401Problem() {
+    var result = mvc.get().uri("/api/v1/me").exchange();
+
+    assertThat(result).hasStatus(HttpStatus.UNAUTHORIZED);
+    assertThat(result.getResponse().getHeader(HttpHeaders.WWW_AUTHENTICATE)).isEqualTo("Bearer");
+    ApiAssertions.assertProblem(body(result), ErrorCode.UNAUTHENTICATED);
   }
 
   @ParameterizedTest
   @MethodSource("everyKindOfUser")
-  void authenticatedRequestsAreRefusedUntilEndpointsExist(TestUser user) {
-    assertThat(mvc.get().uri("/v1/me").with(user.asRequest())).hasStatus(HttpStatus.FORBIDDEN);
+  void authenticatedRequestsGetA403ProblemUntilEndpointsExist(TestUser user) {
+    var result = mvc.get().uri("/api/v1/me").with(user.asRequest()).exchange();
+
+    assertThat(result).hasStatus(HttpStatus.FORBIDDEN);
+    ApiAssertions.assertProblem(body(result), ErrorCode.FORBIDDEN);
   }
 
   @Test
-  void writesAreRefused() {
-    assertThat(mvc.post().uri("/v1/bookings").with(TestUser.user(1).asRequest()))
+  void writesAreRefusedByAuthorizationNotByCsrf() {
+    // CSRF is off for the stateless bearer API: an anonymous write is 401, not a CSRF 403.
+    assertThat(mvc.post().uri("/api/v1/bookings")).hasStatus(HttpStatus.UNAUTHORIZED);
+    assertThat(mvc.post().uri("/api/v1/bookings").with(TestUser.user(1).asRequest()))
         .hasStatus(HttpStatus.FORBIDDEN);
+  }
+
+  private static String body(org.springframework.test.web.servlet.assertj.MvcTestResult result) {
+    try {
+      return result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+    } catch (java.io.UnsupportedEncodingException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   @Test

@@ -5,7 +5,7 @@ Spring Boot modular monolith serving the Proxy Care User and Caretaker apps
 [docs/DATABASE.md](docs/DATABASE.md), testing: [docs/TESTING.md](docs/TESTING.md), and the
 decision records in [docs/adr](docs/adr).
 
-Status: Milestone 03 (persistence foundation). There are no business endpoints and no
+Status: Milestone 04 (API and error handling foundation; contract in docs/adr/0012). There are no business endpoints and no
 authentication yet: every request except health, info, metrics and API docs is refused.
 
 > **Upgrading a local database from before Milestone 03:** the database now uses dedicated roles

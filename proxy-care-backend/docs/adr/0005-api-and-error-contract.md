@@ -1,6 +1,6 @@
 # ADR 0005: API response and error contract
 
-- Status: Accepted (items marked *proposal* need client-team agreement)
+- Status: **Superseded by [ADR 0012](0012-api-contract-problem-details.md)** (2026-11-18): the envelope, error body and `/v1` base path are replaced. Kept for history.
 - Date: 2026-11-18
 
 ## Context

@@ -24,12 +24,14 @@ import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import com.tngtech.archunit.library.GeneralCodingRules;
 import jakarta.persistence.Entity;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.repository.Repository;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -161,6 +163,30 @@ class ArchitectureTest {
           .resideInAPackage("in.proxycare.*.api..")
           .allowEmptyShould(true);
 
+  /**
+   * The /api/v1 prefix is added centrally (ApiWebConfiguration); a controller must not repeat it.
+   */
+  @ArchTest
+  static final ArchRule controllersDeclareOnlyResourcePaths =
+      classes()
+          .that()
+          .areAnnotatedWith(RestController.class)
+          .should(notMapPathsStartingWith("/api"))
+          .allowEmptyShould(true);
+
+  /**
+   * Domain code throws these, so they stay plain Java (shared.error.web holds the HTTP mapping).
+   */
+  @ArchTest
+  static final ArchRule errorTypesArePlainJava =
+      noClasses()
+          .that()
+          .resideInAPackage("in.proxycare.shared.error")
+          .should()
+          .dependOnClassesThat()
+          .resideInAnyPackage(
+              "org.springframework..", "jakarta..", "tools.jackson..", "com.fasterxml.jackson..");
+
   @ArchTest
   static final ArchRule entitiesLiveInTheInfrastructureLayer =
       classes()
@@ -242,6 +268,31 @@ class ArchitectureTest {
         }
       }
     };
+  }
+
+  private static ArchCondition<JavaClass> notMapPathsStartingWith(String prefix) {
+    return new ArchCondition<>("not map paths starting with " + prefix) {
+      @Override
+      public void check(JavaClass controller, ConditionEvents events) {
+        controller
+            .tryGetAnnotationOfType(RequestMapping.class)
+            .ifPresent(mapping -> {
+              for (String path : concat(mapping.value(), mapping.path())) {
+                if (path.startsWith(prefix)) {
+                  events.add(
+                      SimpleConditionEvent.violated(
+                          controller, controller.getName() + " maps " + path));
+                }
+              }
+            });
+      }
+    };
+  }
+
+  private static List<String> concat(String[] first, String[] second) {
+    List<String> all = new java.util.ArrayList<>(List.of(first));
+    all.addAll(List.of(second));
+    return all;
   }
 
   private static Optional<String> moduleOf(String packageName) {

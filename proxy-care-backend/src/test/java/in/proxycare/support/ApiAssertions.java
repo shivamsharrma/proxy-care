@@ -2,68 +2,98 @@ package in.proxycare.support;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import in.proxycare.shared.error.ErrorCode;
+import in.proxycare.shared.error.FieldValidationError;
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import tools.jackson.databind.JsonNode;
 
 /**
- * Assertions for the response envelope every API endpoint returns (ADR 0005), as the Flutter client
- * parses it ({@code proxy-care-client/lib/core/error/error_mapper.dart}).
+ * Assertions for the API contract (ADR 0012): exactly these fields, nothing more.
  *
  * <pre>{@code
- * assertThat(mvc.post().uri("/v1/bookings").content(body)).hasStatus(422);
- * ApiAssertions.assertErrorEnvelope(result.getResponse().getContentAsString(), "VALIDATION_ERROR");
+ * var result = mvc.post().uri("/api/v1/probes").contentType(JSON).content(body).exchange();
+ * JsonNode problem = ApiAssertions.assertProblem(result.getResponse().getContentAsString(),
+ *     ErrorCode.VALIDATION_ERROR);
  * }</pre>
  */
 public final class ApiAssertions {
 
+  /** Fields every problem has; {@code errors} is added only for field problems. */
+  public static final Set<String> PROBLEM_FIELDS =
+      Set.of("type", "title", "status", "detail", "instance", "code", "traceId", "timestamp");
+
   private ApiAssertions() {}
 
-  /** A success envelope; returns its {@code data} for further assertions. */
-  public static JsonNode assertSuccessEnvelope(String body) {
-    JsonNode envelope = TestJson.tree(body);
-    assertThat(envelope.path("success").isBoolean() && envelope.path("success").asBoolean())
-        .as("success is true")
-        .isTrue();
-    assertThat(envelope.has("data")).as("data is present").isTrue();
-    assertThat(envelope.path("error").isNull()).as("error is null").isTrue();
-    assertMeta(envelope);
-    return envelope.path("data");
+  /** A single-resource body; returns its {@code data}. */
+  public static JsonNode assertData(String body) {
+    JsonNode root = TestJson.tree(body);
+    assertThat(fieldNames(root)).as("top-level fields").containsExactly("data");
+    return root.path("data");
   }
 
-  /** An error envelope with {@code expectedCode}; returns its {@code error} object. */
-  public static JsonNode assertErrorEnvelope(String body, String expectedCode) {
-    JsonNode envelope = TestJson.tree(body);
-    assertThat(envelope.path("success").isBoolean() && !envelope.path("success").asBoolean())
-        .as("success is false")
-        .isTrue();
-    assertThat(envelope.path("data").isNull()).as("data is null").isTrue();
-    JsonNode error = envelope.path("error");
-    assertThat(error.path("code").asString()).as("error.code").isEqualTo(expectedCode);
-    assertThat(error.path("message").asString()).as("error.message").isNotBlank();
-    assertMeta(envelope);
-    return error;
+  /** A collection body; returns the whole body for assertions on {@code data} and {@code page}. */
+  public static JsonNode assertPage(String body) {
+    JsonNode root = TestJson.tree(body);
+    assertThat(fieldNames(root)).as("top-level fields").containsExactlyInAnyOrder("data", "page");
+    assertThat(root.path("data").isArray()).as("data is an array").isTrue();
+    assertThat(fieldNames(root.path("page")))
+        .as("page fields")
+        .containsExactlyInAnyOrder("nextCursor", "hasMore", "size");
+    return root;
   }
 
-  /** {@code error.fieldErrors} as a map; empty when absent. */
-  public static Map<String, List<String>> fieldErrors(JsonNode error) {
-    Map<String, List<String>> result = new LinkedHashMap<>();
-    error
-        .path("fieldErrors")
-        .properties()
-        .forEach(field -> {
-          List<String> messages = new ArrayList<>();
-          field.getValue().forEach(message -> messages.add(message.asString()));
-          result.put(field.getKey(), messages);
-        });
-    return result;
+  /**
+   * A problem for {@code code}, with exactly the contract's fields; returns it. {@code errors} is
+   * allowed only when present and non-empty.
+   */
+  public static JsonNode assertProblem(String body, ErrorCode code) {
+    JsonNode problem = TestJson.tree(body);
+    List<String> fields = fieldNames(problem);
+    if (problem.has("errors")) {
+      assertThat(problem.path("errors").isArray() && !problem.path("errors").isEmpty())
+          .as("errors is a non-empty array when present")
+          .isTrue();
+      assertThat(fields).containsExactlyInAnyOrderElementsOf(withErrors());
+    } else {
+      assertThat(fields).as("problem fields").containsExactlyInAnyOrderElementsOf(PROBLEM_FIELDS);
+    }
+    assertThat(problem.path("type").asString()).isEqualTo(code.type());
+    assertThat(problem.path("title").asString()).isEqualTo(code.title());
+    assertThat(problem.path("status").asInt()).isEqualTo(code.status());
+    assertThat(problem.path("code").asString()).isEqualTo(code.name());
+    assertThat(problem.path("detail").asString()).isNotBlank();
+    assertThat(problem.path("instance").asString()).startsWith("/");
+    assertThat(problem.path("traceId").asString()).matches("[0-9a-f]{32}");
+    assertThat(Instant.parse(problem.path("timestamp").asString())).isNotNull();
+    return problem;
   }
 
-  private static void assertMeta(JsonNode envelope) {
-    JsonNode meta = envelope.path("meta");
-    assertThat(meta.path("timestamp").asString()).as("meta.timestamp").isNotBlank();
-    assertThat(meta.path("correlationId").asString()).as("meta.correlationId").isNotBlank();
+  /** The problem's {@code errors}; empty when absent. */
+  public static List<FieldValidationError> errors(JsonNode problem) {
+    List<FieldValidationError> errors = new ArrayList<>();
+    problem
+        .path("errors")
+        .forEach(error ->
+            errors.add(
+                new FieldValidationError(
+                    error.path("field").asString(),
+                    error.path("code").asString(),
+                    error.path("message").asString())));
+    return errors;
+  }
+
+  private static List<String> fieldNames(JsonNode node) {
+    List<String> names = new ArrayList<>();
+    node.propertyNames().forEach(names::add);
+    return names;
+  }
+
+  private static List<String> withErrors() {
+    List<String> fields = new ArrayList<>(PROBLEM_FIELDS);
+    fields.add("errors");
+    return fields;
   }
 }

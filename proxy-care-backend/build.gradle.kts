@@ -137,6 +137,8 @@ tasks.test {
         events("failed", "skipped")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
+    // OpenApiDocumentTest writes the API description here on every run (ADR 0012).
+    outputs.file(layout.buildDirectory.file("openapi/openapi.json"))
     finalizedBy(tasks.jacocoTestReport)
 }
 

@@ -28,6 +28,8 @@ management:
       probability: 1.0
 
 springdoc:
+  # The test-only probe API (src/test, in.proxycare.support) is not part of the documented API.
+  packages-to-exclude: in.proxycare.support
   api-docs:
     enabled: true
   swagger-ui:

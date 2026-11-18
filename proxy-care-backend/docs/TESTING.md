@@ -95,10 +95,13 @@ are sentences about behaviour: `rejectsANegativeReadTimeout`, not `test1` or `te
 
 - `@IntegrationTest` plus `MockMvcTester`: requests pass through the real security filter chain,
   controllers, validation and exception handling.
-- Assert status codes, response JSON and the error envelope with `ApiAssertions`.
+- Assert status codes, response JSON and problem responses with `ApiAssertions`
+  (`assertData`, `assertPage`, `assertProblem`): exactly the contract's fields, nothing more.
+- `support.api.ProbeApiController` is a test-only API under `/api/v1/probes` that exercises every
+  response shape and error category; it is excluded from the OpenAPI document.
 - Authenticated callers come from `TestUser` (`user(1)`, `caretaker(2)`, `userAndCaretaker(3)`,
   `withoutRoles(4)`): `mvc.get().uri(...).with(TestUser.user(1).asRequest())`.
-- Example: `SecurityFilterChainTest`.
+- Examples: `SecurityFilterChainTest`, `ProblemResponseContractTest`, `ApiConventionsTest`.
 
 ### Contract tests (outbound HTTP)
 
@@ -155,7 +158,7 @@ are sentences about behaviour: `rejectsANegativeReadTimeout`, not `test1` or `te
 | `MutableClock`, `ClockTestConfiguration` | Controllable UTC clock replacing the application `Clock`; reset to `2026-01-15T09:00:00Z` before each test |
 | `TestIds` | Readable deterministic UUIDs (`TestIds.account(7)`) |
 | `TestJson` | JSON mapper for unit tests, configured like the application's (verified by `ProxyCareApplicationTest`) |
-| `ApiAssertions` | Success/error envelope assertions matching the Flutter client's parser |
+| `ApiAssertions` | Exact-shape assertions for `{data}`, `{data, page}` and problem responses (ADR 0012) |
 | `WireMockSupport` | WireMock servers and client settings for contract tests |
 | `Concurrently` | Releases N threads at once and collects their outcomes |
 | `VendorCallGuard` | Blocks non-local HTTP for the whole test run |
