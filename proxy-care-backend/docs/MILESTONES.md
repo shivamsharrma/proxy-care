@@ -65,3 +65,14 @@ Assumptions to verify:
 - TODO(verify): Razorpay header names `X-Razorpay-Signature` and `X-Razorpay-Event-Id` (RazorpayWebhookController).
 - Razorpay signs the raw body with HMAC-SHA256 and sends lowercase hex.
 Added to LATER.md: none
+
+## M7 — Packaging, local run and documentation   ✅ complete (2026-11-20)
+Tests: 99/99 (new in this milestone: InfoEndpointTest ×1, SecurityHeadersTest ×1); CI `docker build` step green
+CI: https://github.com/shivamsharrma/proxy-care/actions/runs/44599581355    Tag: none (branch-only, per user)    Commit: 1bb1479
+Main-source class count: 18 (limit ~20)
+Manual check (docker compose up): /actuator/health UP; Swagger UI 200, /api/v1/me listed with the application/problem+json
+`Problem` schema and bearer auth; app runs as uid 10001 (non-root); /api/v1/me without a token → 401; no Server header.
+`/actuator/info` in the image shows build info only (the Docker build context has no .git); tests and jar builds include git.
+Assumptions to verify: none new
+Added to LATER.md: the section 6 deferred table, plus serviceRoleKey, RLS on flyway_schema_history, chunked-body limit,
+webhook event processing, non-JSON idempotent replay, merging the /me and role queries.
