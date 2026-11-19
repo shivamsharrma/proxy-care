@@ -5,10 +5,22 @@ spring:
     virtual:
       enabled: true
   # A dedicated backend Postgres role, never the Supabase service-role API key.
+  # Use Supabase's SESSION pooler URL: it works over IPv4 (the direct connection is IPv6-only
+  # without the IPv4 add-on).
+  # The TRANSACTION pooler (port 6543) needs prepareThreshold=0 on the JDBC URL, e.g.
+  #   jdbc:postgresql://<host>:6543/postgres?prepareThreshold=0
   datasource:
     url: ${DB_URL}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      # search_path lets PostGIS types (schema "extensions") resolve; Flyway uses the same pool.
+      connection-init-sql: SET statement_timeout = '5s'; SET search_path = public, extensions
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
 
 proxycare:
   supabase:
