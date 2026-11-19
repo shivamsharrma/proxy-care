@@ -119,3 +119,36 @@ The backend never handles OTPs or passwords.
 - **Never** decide whose data to return from a user id in the request body or path. Always use `me.id()`.
 - Enforce ownership in the query, e.g. `findByIdAndUserId(id, me.id())`. If nothing is found, return **404, not 403**,
   so callers can't probe which ids exist.
+
+## How to make an endpoint idempotent
+
+Endpoints that create orders, payment requests or payouts **must** require an `Idempotency-Key` header (a UUID the app
+generates once per user action, e.g. per "Pay" tap, and reuses on retries).
+
+```java
+@PostMapping("/api/v1/bookings")
+ResponseEntity<BookingDtos.Created> create(@RequestHeader("Idempotency-Key") String key,
+                                           @Valid @RequestBody BookingDtos.Create request,
+                                           @AuthenticationPrincipal CurrentUser me) {
+    return idempotency.execute(me.id(), key, request, BookingDtos.Created.class,
+            () -> ResponseEntity.status(201).body(bookingService.create(me, request)));
+}
+```
+
+- **One transaction:** claiming the key, running the action (its DB writes join the same transaction) and storing the
+  response happen together. If the action throws, everything rolls back and the client can retry with the same key.
+- **Same key, same body:** the stored status and JSON body are replayed with `Idempotent-Replayed: true`. A concurrent
+  duplicate waits for the first request, then gets the replay.
+- **Same key, different body:** `422 IDEMPOTENCY_KEY_REUSED`. A key that isn't a UUID: `400 VALIDATION_FAILED`.
+- **Still running:** a duplicate that waits longer than `proxycare.idempotency.lock-timeout` (default 3s) gets
+  `409 IDEMPOTENCY_IN_PROGRESS` and should retry shortly.
+- **Limitations:** only JSON responses are supported. Status and body are replayed; other headers such as `Location`
+  are not. A rollback cannot undo calls to vendors: an action that calls Razorpay must also pass Razorpay a stable
+  receipt or idempotency value.
+- **Retention:** keys are kept for 24 hours; a daily job deletes older ones.
+
+## JSON request DTOs (Jackson 3)
+
+Boot 4 uses Jackson 3, which **rejects a request that omits a primitive field** (`int`, `boolean`, `long`) of a record:
+the client gets `400 MALFORMED_REQUEST`. Use a primitive only for fields that are required; use `Integer`/`Boolean`
+(and `@NotNull` if needed) for optional ones.
