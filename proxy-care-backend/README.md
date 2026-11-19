@@ -84,3 +84,38 @@ Rules:
 - Sensitive data: phone numbers, pickup OTPs, Aadhaar last-4, PAN, bank details, health notes, live location and JWTs.
 - Every request gets one access line (method, path, status, duration, userId). Bodies, query strings and headers are
   never logged. `prod` logs ECS JSON; `local` logs plain text with the requestId on each line.
+
+## Authentication and authorization
+
+The apps log in with **Supabase Auth** (phone OTP) and send `Authorization: Bearer <supabase access token>`.
+The backend never handles OTPs or passwords.
+
+- **Token check:** keys come from `${SUPABASE_URL}/auth/v1/.well-known/jwks.json`. Both **ES256** (Supabase's default
+  asymmetric key) and **RS256** are accepted. `iss` must be `${SUPABASE_URL}/auth/v1` and `aud` must be `authenticated`;
+  `exp`/`nbf` are checked with 30 s of clock skew.
+  TODO(verify): confirm which algorithm the real project's signing key uses (Supabase dashboard → JWT Keys).
+- **Legacy secret:** if `SUPABASE_JWT_SECRET` is set, HS256 with that secret is used *instead* (older projects, local dev).
+  When it isn't set, HS256 tokens are rejected.
+- **Who the caller is:** `sub` is the user id and `phone` comes from the token. Roles (`USER`, `CARETAKER`, `ADMIN`) are
+  read from `profiles` on every request. A user without a profile is authenticated with no roles; `GET /api/v1/me`
+  returns empty `roles`, which tells the app to show onboarding.
+- **In controllers:** take `@AuthenticationPrincipal CurrentUser me` and guard role-only endpoints with
+  `@PreAuthorize("hasRole('CARETAKER')")`.
+- **Paths:**
+
+  | Path | Access |
+  |---|---|
+  | `/actuator/health/**`, `/actuator/info` | public |
+  | `/webhooks/**` | public; the signature is checked in code |
+  | `/v3/api-docs/**`, `/swagger-ui/**` | public, but disabled in `prod` |
+  | `/api/v1/**` | needs a valid token; an unknown path returns 404 |
+  | everything else | **denied** (401/403, not 404) |
+
+  The deny-by-default rule is deliberate: a controller mapped outside `/api/v1` can never become public by accident.
+- **401 and 403** use the same problem JSON as every other error (`UNAUTHENTICATED`, `FORBIDDEN`).
+
+### Authorization rules
+
+- **Never** decide whose data to return from a user id in the request body or path. Always use `me.id()`.
+- Enforce ownership in the query, e.g. `findByIdAndUserId(id, me.id())`. If nothing is found, return **404, not 403**,
+  so callers can't probe which ids exist.
