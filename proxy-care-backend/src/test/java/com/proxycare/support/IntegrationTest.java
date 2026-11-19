@@ -1,5 +1,6 @@
 package com.proxycare.support;
 
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -39,5 +40,10 @@ public abstract class IntegrationTest {
     void resetState() {
         db.truncateAll();
         clock.reset();
+    }
+
+    /** {@code Authorization} header value with a valid token for the user. */
+    protected String bearer(UUID userId) {
+        return "Bearer " + tokens.forUser(userId, "+919876543210");
     }
 }
