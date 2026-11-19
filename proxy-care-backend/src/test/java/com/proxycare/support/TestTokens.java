@@ -5,6 +5,7 @@ import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.JWSSigner;
 import com.nimbusds.jose.crypto.ECDSASigner;
+import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;
@@ -65,6 +66,7 @@ public class TestTokens {
         private boolean expired;
         private boolean rs256;
         private boolean otherKey;
+        private String hs256Secret;
 
         private Builder(UUID id, String phone) {
             this.id = id;
@@ -97,6 +99,12 @@ public class TestTokens {
             return this;
         }
 
+        /** Legacy HS256 with a shared secret (at least 32 bytes). */
+        public Builder hs256(String secret) {
+            hs256Secret = secret;
+            return this;
+        }
+
         public String build() {
             Instant iat = expired ? clock.instant().minus(Duration.ofHours(2)) : clock.instant();
             var claims = new JWTClaimsSet.Builder()
@@ -111,7 +119,10 @@ public class TestTokens {
             try {
                 JWSSigner signer;
                 JWSHeader header;
-                if (rs256) {
+                if (hs256Secret != null) {
+                    signer = new MACSigner(hs256Secret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    header = new JWSHeader(JWSAlgorithm.HS256);
+                } else if (rs256) {
                     signer = new RSASSASigner(RSA_KEY);
                     header = new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(RSA_KEY.getKeyID()).build();
                 } else {
