@@ -63,3 +63,24 @@ Rules:
 - Money is `long` paise (field names end in `Paise`). Never `double` or `float`.
 - Time is stored as `timestamptz` in UTC. Use `Asia/Kolkata` only for business-time logic (e.g. "is the clinic open").
 - Entities extend `BaseEntity` (UUID id, `createdAt`/`updatedAt` from the `Clock`, `@Version` optimistic locking).
+
+## API responses
+
+- **Success:** return the DTO directly (no `{ data: ... }` envelope). Use `201` for created and `204` for no content.
+  Lists return `PageResponse<T>` (`items`, `page`, `size`, `hasNext`) built with `PageResponse.from(slice)`.
+  The page size defaults to 20 and is capped at 100 by Spring Data's own settings.
+- **Errors:** always RFC 9457 `application/problem+json`, with extra `code` and `requestId` fields (`errors[]` only for
+  validation failures). The apps switch on `code` and show their own English/Hindi text; `detail` is a safe English fallback.
+  Throw `AppException(ErrorCode.X, "safe detail")`; it is the only custom exception.
+- **Request id:** every response has `X-Request-Id`. A client-sent value is kept only if it is a UUID.
+- **Body limit:** bodies over 1 MB are rejected with 413 when they declare `Content-Length`. Chunked bodies are not
+  checked, so the load balancer or proxy must also enforce a limit.
+
+## Logging and personal data
+
+- Never log request or response DTOs, entities or raw exception messages. Validation exceptions carry rejected values,
+  such as a phone number. Don't add custom `toString()` methods to DTOs to work around this.
+- Log only fields you chose explicitly, and wrap sensitive ones in `Mask` (`Mask.phone`, `Mask.fully`, `Mask.last4`).
+- Sensitive data: phone numbers, pickup OTPs, Aadhaar last-4, PAN, bank details, health notes, live location and JWTs.
+- Every request gets one access line (method, path, status, duration, userId). Bodies, query strings and headers are
+  never logged. `prod` logs ECS JSON; `local` logs plain text with the requestId on each line.
