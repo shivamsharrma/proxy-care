@@ -23,3 +23,13 @@ Assumptions to verify:
 - `flyway_schema_history` lives in `public` without RLS (excluded by the RLS check). On Supabase, revoke `anon`/`authenticated` access to it, or enable RLS on it.
 - `statement_timeout = 5s` also applies to migrations; long data migrations must raise it with `SET LOCAL`.
 Added to LATER.md: none
+
+## M3 — Error handling, response format, request logging, masking   ✅ complete (2026-11-20)
+Tests: 50/50 (new in this milestone: ErrorFormatTest ×7, RequestIdTest ×6, AccessLogTest ×3, MaskTest ×4, PaginationTest ×3)
+CI: https://github.com/shivamsharrma/proxy-care/actions/runs/44591970665    Tag: none (branch-only, per user)    Commit: 541c1c4
+Main-source class count: 11 (+ ErrorCode, AppException, GlobalExceptionHandler, RequestLoggingFilter, PageResponse, Mask)
+Assumptions to verify: none
+Known limitation: the 1 MB body limit reads Content-Length; chunked bodies must be limited at the load balancer/proxy.
+Notes: added `IntegrationTest.bearer(UUID)` (one line) so every M3 test sends a token, as required for M4 forward compatibility.
+Other 4xx raised by Spring MVC (e.g. 415, 406) keep their HTTP status and use code MALFORMED_REQUEST.
+Added to LATER.md: none
