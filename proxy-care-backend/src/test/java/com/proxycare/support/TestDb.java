@@ -30,6 +30,16 @@ public class TestDb {
         jdbc.update("insert into auth.users (id) values (?)", id);
     }
 
+    /** Inserts the auth.users row and a profile with the given roles (USER, CARETAKER, ADMIN). */
+    public void insertProfile(UUID id, String phone, String... roles) {
+        insertAuthUser(id);
+        jdbc.update(
+                "insert into profiles (id, phone, roles) values (?, ?, ?::app_role[])",
+                id,
+                phone,
+                "{" + String.join(",", roles) + "}");
+    }
+
     /** Row count of a table; {@code table} is a literal from test code, e.g. "auth.users". */
     public long count(String table) {
         return jdbc.queryForObject("select count(*) from " + table, Long.class);
