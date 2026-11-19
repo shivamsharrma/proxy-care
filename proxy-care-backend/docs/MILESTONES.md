@@ -33,3 +33,14 @@ Known limitation: the 1 MB body limit reads Content-Length; chunked bodies must 
 Notes: added `IntegrationTest.bearer(UUID)` (one line) so every M3 test sends a token, as required for M4 forward compatibility.
 Other 4xx raised by Spring MVC (e.g. 415, 406) keep their HTTP status and use code MALFORMED_REQUEST.
 Added to LATER.md: none
+
+## M4 — Authentication, authorization and /me   ✅ complete (2026-11-20)
+Tests: 76/76 (new in this milestone: AuthenticationTest ×10, MeEndpointTest ×4, AuthorizationTest ×3, PublicEndpointsTest ×4, ProdProfileTest ×3, SupabaseJwtConverterTest ×2)
+CI: https://github.com/shivamsharrma/proxy-care/actions/runs/44593599394    Tag: none (branch-only, per user)    Commit: 9f3f321
+Main-source class count: 14 (+ SecurityConfig, SupabaseJwtConverter, CurrentUser, MeController; − PermitAllSecurityConfig)
+Assumptions to verify:
+- TODO(verify): the real Supabase project's signing algorithm (ES256 expected; RS256 also accepted).
+- Supabase's `phone` claim is digits without "+" (e.g. 919876543210); /me masks whatever the claim holds.
+Notes: ProdProfileTest boots the real app with the prod profile against the shared container (no second container);
+the test JwtDecoder is a @Primary bean built by the same SecurityConfig.jwksDecoder(...) as prod.
+Added to LATER.md: none
