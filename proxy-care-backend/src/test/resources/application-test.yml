@@ -22,3 +22,6 @@ springdoc:
     enabled: true
   swagger-ui:
     enabled: true
+
+# Short so IdempotencyConcurrencyTest sees a blocked duplicate time out quickly; fast actions never wait this long.
+proxycare.idempotency.lock-timeout: 500ms
