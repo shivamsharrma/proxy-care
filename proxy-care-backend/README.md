@@ -3,17 +3,82 @@
 Spring Boot 4.1 (Java 21) API shared by the Proxy Care User and Caretaker apps.
 Supabase provides Postgres, phone-OTP auth and storage; this service is the only writer of business data.
 
+Milestone progress: `docs/MILESTONES.md`. Deferred decisions: `docs/LATER.md`.
+
+## Prerequisites
+
+- Java 21
+- Docker (tests start a PostGIS container with Testcontainers; `docker compose` runs the app locally)
+
 ## Build and test
 
-Prerequisites: Java 21 and Docker (tests start a PostGIS container with Testcontainers).
-
 ```sh
-./gradlew clean build
+./gradlew clean build      # compiles and runs every test
 ```
 
-Configuration is read from environment variables; see `.env.example`.
+## Run locally
 
-Milestone progress: `docs/MILESTONES.md`. Deferred decisions: `docs/LATER.md`.
+```sh
+docker compose up --build  # PostGIS + the app (profile `local`) on http://localhost:8080
+```
+
+- Health: http://localhost:8080/actuator/health. API docs: http://localhost:8080/swagger-ui/index.html.
+- `/actuator/info` shows the build version and, when built from a git checkout, the commit. The Docker build context
+  has no `.git`, so a Docker image shows build info only.
+- Compose creates a stub `auth.users` table (`docker/auth-stub.sql`), because `profiles` references Supabase's auth
+  schema.
+- Alternative: run `supabase start` (Supabase CLI). It gives real Postgres + Auth on http://localhost:54321; point
+  `DB_URL` and `SUPABASE_URL` at it and run `./gradlew bootRun --args='--spring.profiles.active=local'`.
+
+## Environment variables
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `DB_URL` | yes | JDBC URL of Supabase's **session pooler** (see Database) |
+| `DB_USER`, `DB_PASSWORD` | yes | the dedicated backend Postgres role (never the service-role API key) |
+| `DB_POOL_SIZE` | no (10) | Hikari max pool size |
+| `SUPABASE_URL` | yes | e.g. `https://<ref>.supabase.co`; gives the token issuer and JWKS |
+| `SUPABASE_JWT_SECRET` | no | legacy HS256 secret; when set, it replaces JWKS |
+| `RAZORPAY_WEBHOOK_SECRET` | yes | verifies Razorpay webhooks |
+| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | not yet | needed once payments are built |
+| `GOOGLE_MAPS_API_KEY` | not yet | hospital search and ETA |
+| `UBER_CLIENT_ID`, `UBER_CLIENT_SECRET` | not yet | rides |
+| `SPRING_PROFILES_ACTIVE` | yes | `local` or `prod` |
+
+The app fails to start when a required value is missing. Copy `.env.example` to `.env` for local values; never
+commit `.env`.
+
+## Getting a test JWT locally
+
+- **Supabase project:** add a test phone number with a fixed OTP (Dashboard → Authentication → Phone), sign in from the
+  app or with `supabase-js` `signInWithOtp` + `verifyOtp`, and use the returned `access_token`.
+- **Local HS256:** with `SUPABASE_JWT_SECRET` set (compose sets the Supabase CLI's public default), sign a token with
+  that secret: `sub` = a user UUID, `aud` = `authenticated`, `iss` = `${SUPABASE_URL}/auth/v1`, `exp` in the future,
+  plus a `phone` claim. Insert the user into `auth.users` (and `profiles` for roles) before calling the API.
+
+## How to add a feature
+
+One package per feature, about five files, with no layer sub-packages:
+
+```
+booking/
+  BookingController.java   # HTTP only: validate, call the service, return a DTO
+  BookingService.java      # business rules + @Transactional
+  BookingRepository.java   # Spring Data JPA
+  Booking.java             # JPA entity (extends BaseEntity)
+  BookingDtos.java         # request/response records nested in one file, each response with static from(entity)
+```
+
+- Map entities to DTOs by hand in `from(...)`. Controllers never touch repositories, and entities never leave the service.
+- Add a migration (`V<n>__<name>.sql`) with RLS enabled for every new table. `RlsEnabledTest` enforces this.
+- Write the tests first, `extends IntegrationTest` (see "How to write tests").
+
+## How to add an error code
+
+1. Add a constant to `ErrorCode` with its HTTP status and an English title. Never rename or reuse an existing code:
+   the apps switch on it.
+2. Throw `new AppException(ErrorCode.YOUR_CODE, "Safe English detail.")`. Never put personal data in the detail.
+3. Tell the app teams so they add the English and Hindi text for the new code.
 
 ## How to write tests
 
