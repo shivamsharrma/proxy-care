@@ -44,5 +44,10 @@ tasks.withType<JavaCompile> {
 }
 
 tasks.test {
+    // Sequential: JUnit parallel mode stays off.
     useJUnitPlatform()
+    testLogging {
+        events("failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
 }

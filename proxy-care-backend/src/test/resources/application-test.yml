@@ -1,4 +1,8 @@
-# Clearly fake values; the database comes from the Testcontainers @ServiceConnection.
+# The database comes from the Testcontainers @ServiceConnection; everything here is clearly fake.
+spring:
+  flyway:
+    locations: classpath:db/migration, classpath:db/testmigration
+
 proxycare:
   supabase:
     url: https://test.supabase.co
@@ -11,3 +15,10 @@ proxycare:
   uber:
     client-id: test-uber-client
     client-secret: test-uber-secret
+
+# Plain-text logs (no structured format) and Swagger on.
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
