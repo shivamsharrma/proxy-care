@@ -1,5 +1,7 @@
 package com.proxycare.common.config;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
@@ -11,13 +13,16 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties("proxycare")
 public record AppProperties(
-        @DefaultValue Supabase supabase,
+        @Valid @DefaultValue Supabase supabase,
         @DefaultValue Razorpay razorpay,
         @DefaultValue Google google,
         @DefaultValue Uber uber) {
 
-    /** {@code jwtSecret} is optional: when set, legacy HS256 tokens are used instead of JWKS. */
-    public record Supabase(String url, String jwtSecret) {}
+    /**
+     * {@code url} (e.g. https://abc.supabase.co) gives the token issuer and JWKS location.
+     * {@code jwtSecret} is optional: when set, legacy HS256 tokens are used instead of JWKS.
+     */
+    public record Supabase(@NotBlank String url, String jwtSecret) {}
 
     public record Razorpay(String keyId, String keySecret, String webhookSecret) {}
 
