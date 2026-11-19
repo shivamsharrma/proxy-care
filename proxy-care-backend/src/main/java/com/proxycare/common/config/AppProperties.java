@@ -15,7 +15,7 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties("proxycare")
 public record AppProperties(
         @Valid @DefaultValue Supabase supabase,
-        @DefaultValue Razorpay razorpay,
+        @Valid @DefaultValue Razorpay razorpay,
         @DefaultValue Google google,
         @DefaultValue Uber uber,
         @DefaultValue Idempotency idempotency) {
@@ -26,7 +26,8 @@ public record AppProperties(
      */
     public record Supabase(@NotBlank String url, String jwtSecret) {}
 
-    public record Razorpay(String keyId, String keySecret, String webhookSecret) {}
+    /** {@code webhookSecret} verifies inbound webhooks; the API keys stay optional until payments are built. */
+    public record Razorpay(String keyId, String keySecret, @NotBlank String webhookSecret) {}
 
     public record Google(String mapsApiKey) {}
 
