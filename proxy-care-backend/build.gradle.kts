@@ -2,6 +2,7 @@ plugins {
     java
     id("org.springframework.boot") version "4.1.2"
     id("io.spring.dependency-management") version "1.1.7"
+    id("com.gorylenko.gradle-git-properties") version "4.0.1"
 }
 
 group = "com.proxycare"
@@ -11,6 +12,19 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
     }
+}
+
+springBoot {
+    // Exposed at /actuator/info. No timestamp, so the output stays cacheable.
+    buildInfo {
+        excludes = setOf("time")
+    }
+}
+
+// The repo root (monorepo) holds .git; the Docker build context has none, so don't fail there.
+gitProperties {
+    dotGitDirectory = layout.projectDirectory.dir("../.git")
+    failOnNoGitDirectory = false
 }
 
 repositories {
@@ -37,6 +51,11 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+// Only the executable jar is built, so the Dockerfile can copy build/libs/*.jar.
+tasks.jar {
+    enabled = false
 }
 
 tasks.withType<JavaCompile> {

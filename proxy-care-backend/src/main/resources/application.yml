@@ -42,6 +42,7 @@ proxycare:
     client-secret: ${UBER_CLIENT_SECRET:}
 
 server:
+  shutdown: graceful
   error:
     include-stacktrace: never
     include-message: never
