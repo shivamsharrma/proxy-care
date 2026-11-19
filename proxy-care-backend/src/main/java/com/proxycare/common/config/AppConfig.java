@@ -24,10 +24,12 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.data.auditing.DateTimeProvider;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.client.RestClient;
 
 @Configuration(proxyBeanMethods = false)
 @EnableJpaAuditing(dateTimeProviderRef = "auditingDateTimeProvider")
+@EnableScheduling
 public class AppConfig {
 
     /** Inject this instead of calling Instant.now(); tests replace it with a MutableClock. */

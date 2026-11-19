@@ -2,6 +2,7 @@ package com.proxycare.common.config;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
@@ -16,7 +17,8 @@ public record AppProperties(
         @Valid @DefaultValue Supabase supabase,
         @DefaultValue Razorpay razorpay,
         @DefaultValue Google google,
-        @DefaultValue Uber uber) {
+        @DefaultValue Uber uber,
+        @DefaultValue Idempotency idempotency) {
 
     /**
      * {@code url} (e.g. https://abc.supabase.co) gives the token issuer and JWKS location.
@@ -29,4 +31,7 @@ public record AppProperties(
     public record Google(String mapsApiKey) {}
 
     public record Uber(String clientId, String clientSecret) {}
+
+    /** {@code lockTimeout}: how long a duplicate request waits for the first one before getting 409. */
+    public record Idempotency(@DefaultValue("3s") Duration lockTimeout) {}
 }
