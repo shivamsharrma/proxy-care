@@ -56,3 +56,12 @@ Notes:
 - Found while testing: Jackson 3 rejects JSON that omits a primitive record field (400 MALFORMED_REQUEST). Documented in the README.
 - Added an index on idempotency_keys(created_at) for the daily cleanup.
 Added to LATER.md: none
+
+## M6 — Inbound webhooks   ✅ complete (2026-11-20)
+Tests: 97/97 (new in this milestone: WebhookSignaturesTest ×4, RazorpayWebhookTest ×6, ProdProfileTest +1 (startup fails without the webhook secret); RlsEnabledTest now covers webhook_events)
+CI: https://github.com/shivamsharrma/proxy-care/actions/runs/44596350929    Tag: none (branch-only, per user)    Commit: 21d0bae
+Main-source class count: 18 (+ WebhookSignatures, WebhookInbox, RazorpayWebhookController)
+Assumptions to verify:
+- TODO(verify): Razorpay header names `X-Razorpay-Signature` and `X-Razorpay-Event-Id` (RazorpayWebhookController).
+- Razorpay signs the raw body with HMAC-SHA256 and sends lowercase hex.
+Added to LATER.md: none
