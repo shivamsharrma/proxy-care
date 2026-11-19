@@ -44,3 +44,15 @@ Assumptions to verify:
 Notes: ProdProfileTest boots the real app with the prod profile against the shared container (no second container);
 the test JwtDecoder is a @Primary bean built by the same SecurityConfig.jwksDecoder(...) as prod.
 Added to LATER.md: none
+
+## M5 — Idempotency   ✅ complete (2026-11-20)
+Tests: 86/86 (new in this milestone: IdempotencyTest ×7, IdempotencyConcurrencyTest ×2, IdempotencyCleanupTest ×1; RlsEnabledTest now covers idempotency_keys)
+CI: https://github.com/shivamsharrma/proxy-care/actions/runs/44595282985    Tag: none (branch-only, per user)    Commit: 2affa99
+Main-source class count: 15 (+ IdempotencyService)
+Assumptions to verify: none
+Known limitations (in README): JSON responses only, headers such as Location are not replayed; a rollback can't undo vendor calls.
+Notes:
+- The test profile sets lock-timeout=500ms for all tests (a per-class property would create a second context and container).
+- Found while testing: Jackson 3 rejects JSON that omits a primitive record field (400 MALFORMED_REQUEST). Documented in the README.
+- Added an index on idempotency_keys(created_at) for the daily cleanup.
+Added to LATER.md: none
