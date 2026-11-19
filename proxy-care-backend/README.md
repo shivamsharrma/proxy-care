@@ -152,3 +152,17 @@ ResponseEntity<BookingDtos.Created> create(@RequestHeader("Idempotency-Key") Str
 Boot 4 uses Jackson 3, which **rejects a request that omits a primitive field** (`int`, `boolean`, `long`) of a record:
 the client gets `400 MALFORMED_REQUEST`. Use a primitive only for fields that are required; use `Integer`/`Boolean`
 (and `@NotNull` if needed) for optional ones.
+
+## How to add a webhook provider
+
+Razorpay (`common/webhook/RazorpayWebhookController`) is the reference. Uber and RazorpayX follow the same pattern:
+
+1. Add the provider's secret to `AppProperties` as `@NotBlank` (startup fails without it) and to `.env.example`.
+2. Add the provider name to the `webhook_events.provider` check constraint in a **new** migration.
+3. Add a controller under `/webhooks/<provider>` (public in `SecurityConfig`; no JWT) that:
+   1. takes the body as `@RequestBody byte[]`, the exact bytes the provider signed;
+   2. verifies the signature with `WebhookSignatures.verify(...)` → `401 WEBHOOK_SIGNATURE_INVALID` on failure;
+   3. only then parses the JSON → `400 MALFORMED_REQUEST` if it isn't a JSON object;
+   4. requires the provider's event id → `400 VALIDATION_FAILED` if it is missing;
+   5. calls `WebhookInbox.recordIfNew(...)` and returns 200 quickly. Retries of the same event id are no-ops.
+4. Handling event types (and setting `processed_at`/`error`) belongs to the feature that needs them, not the controller.
