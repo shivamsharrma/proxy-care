@@ -1,0 +1,35 @@
+# Local run: PostGIS plus the app with the `local` profile.
+# Alternative: `supabase start` (Supabase CLI) gives real Auth on http://localhost:54321; point DB_URL and SUPABASE_URL at it.
+services:
+  db:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_DB: proxycare
+      POSTGRES_USER: proxycare
+      POSTGRES_PASSWORD: proxycare
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./docker/auth-stub.sql:/docker-entrypoint-initdb.d/20-auth-stub.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U proxycare -d proxycare"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      DB_URL: jdbc:postgresql://db:5432/proxycare
+      DB_USER: proxycare
+      DB_PASSWORD: proxycare
+      # Local-only values. The JWT secret is the Supabase CLI's public default, never a production secret.
+      SUPABASE_URL: ${SUPABASE_URL:-http://localhost:54321}
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-local-webhook-secret}
+    ports:
+      - "8080:8080"

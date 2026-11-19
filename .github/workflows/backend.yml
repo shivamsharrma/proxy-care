@@ -41,6 +41,9 @@ jobs:
       - name: Build
         run: ./gradlew build --no-daemon
 
+      - name: Docker build
+        run: docker build -t proxy-care-backend:ci .
+
       - name: Upload test reports
         if: failure()
         uses: actions/upload-artifact@v4
