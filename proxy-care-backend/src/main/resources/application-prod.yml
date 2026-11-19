@@ -1,0 +1,1 @@
+# Production: every secret comes from the environment (see .env.example).

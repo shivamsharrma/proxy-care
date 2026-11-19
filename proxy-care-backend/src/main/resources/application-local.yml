@@ -1,0 +1,6 @@
+# Local run against docker compose (or `supabase start`). Override with env vars as needed.
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/proxycare}
+    username: ${DB_USER:proxycare}
+    password: ${DB_PASSWORD:proxycare}

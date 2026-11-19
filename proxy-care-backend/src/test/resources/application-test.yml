@@ -1,0 +1,13 @@
+# Clearly fake values; the database comes from the Testcontainers @ServiceConnection.
+proxycare:
+  supabase:
+    url: https://test.supabase.co
+  razorpay:
+    key-id: rzp_test_fake
+    key-secret: test-key-secret
+    webhook-secret: test-webhook-secret
+  google:
+    maps-api-key: test-maps-key
+  uber:
+    client-id: test-uber-client
+    client-secret: test-uber-secret

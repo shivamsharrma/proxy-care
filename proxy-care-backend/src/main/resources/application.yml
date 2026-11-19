@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: proxy-care-backend
+  threads:
+    virtual:
+      enabled: true
+  # A dedicated backend Postgres role, never the Supabase service-role API key.
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+
+proxycare:
+  supabase:
+    url: ${SUPABASE_URL:}
+    jwt-secret: ${SUPABASE_JWT_SECRET:}
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID:}
+    key-secret: ${RAZORPAY_KEY_SECRET:}
+    webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+  google:
+    maps-api-key: ${GOOGLE_MAPS_API_KEY:}
+  uber:
+    client-id: ${UBER_CLIENT_ID:}
+    client-secret: ${UBER_CLIENT_SECRET:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
