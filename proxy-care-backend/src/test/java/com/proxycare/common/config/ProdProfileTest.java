@@ -32,9 +32,12 @@ class ProdProfileTest extends IntegrationTest {
     @Autowired
     PostgreSQLContainer postgres;
 
+    private static final String SUPABASE_URL = "--SUPABASE_URL=https://test.supabase.co";
+    private static final String WEBHOOK_SECRET = "--RAZORPAY_WEBHOOK_SECRET=test-webhook-secret";
+
     @Test
     void swaggerAndApiDocsAreDisabled() throws Exception {
-        try (var app = start(List.of("--SUPABASE_URL=https://test.supabase.co"))) {
+        try (var app = start(List.of(SUPABASE_URL, WEBHOOK_SECRET))) {
             assertThat(get(app, "/v3/api-docs")).isEqualTo(404);
             assertThat(get(app, "/swagger-ui/index.html")).isEqualTo(404);
         }
@@ -42,15 +45,24 @@ class ProdProfileTest extends IntegrationTest {
 
     @Test
     void startupFailsWithoutSupabaseUrl() {
-        assertThatThrownBy(() -> start(List.of()).close())
+        assertThatThrownBy(() -> start(List.of(WEBHOOK_SECRET)).close())
                 .hasRootCauseInstanceOf(BindValidationException.class)
                 .rootCause()
                 .hasMessageContaining("proxycare.supabase.url");
     }
 
     @Test
+    void startupFailsWithoutRazorpayWebhookSecret() {
+        assertThatThrownBy(() -> start(List.of(SUPABASE_URL)).close())
+                .hasRootCauseInstanceOf(BindValidationException.class)
+                .rootCause()
+                .hasMessageContaining("proxycare.razorpay.webhookSecret");
+    }
+
+    /** Razorpay API keys, Google and Uber stay optional until their features are built. */
+    @Test
     void startupSucceedsWithoutVendorKeys() {
-        try (var app = start(List.of("--SUPABASE_URL=https://test.supabase.co"))) {
+        try (var app = start(List.of(SUPABASE_URL, WEBHOOK_SECRET))) {
             assertThat(app.isRunning()).isTrue();
         }
     }
