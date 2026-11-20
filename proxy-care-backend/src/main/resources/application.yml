@@ -28,9 +28,9 @@ spring:
       ddl-auto: validate
 
 proxycare:
-  supabase:
-    url: ${SUPABASE_URL:}
-    jwt-secret: ${SUPABASE_JWT_SECRET:}
+  security:
+    jwt:
+      supabase-url: ${SUPABASE_URL:}
   razorpay:
     key-id: ${RAZORPAY_KEY_ID:}
     key-secret: ${RAZORPAY_KEY_SECRET:}
@@ -50,9 +50,9 @@ server:
       enabled: false
 
 logging:
-  # Puts the requestId on every plain-text log line (structured formats include MDC anyway).
+  # Puts the traceId on every plain-text log line (structured formats include MDC anyway).
   pattern:
-    correlation: "[%X{requestId:-}] "
+    correlation: "[%X{traceId:-}] "
   include-application-name: false
 
 management:
