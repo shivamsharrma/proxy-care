@@ -1,0 +1,67 @@
+spring:
+  application:
+    name: proxy-care-backend
+  threads:
+    virtual:
+      enabled: true
+  # Supabase puts its own objects in public (e.g. the rls_auto_enable function), so a new project's public is
+  # never empty. Baselining at 0 creates the history table and still runs every migration from V1.
+  flyway:
+    baseline-on-migrate: true
+    baseline-version: 0
+  # A dedicated backend Postgres role, never the Supabase service-role API key.
+  # Use Supabase's SESSION pooler URL: it works over IPv4 (the direct connection is IPv6-only
+  # without the IPv4 add-on).
+  # The TRANSACTION pooler (port 6543) needs prepareThreshold=0 on the JDBC URL, e.g.
+  #   jdbc:postgresql://<host>:6543/postgres?prepareThreshold=0
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      # search_path lets PostGIS types (schema "extensions") resolve; Flyway uses the same pool.
+      connection-init-sql: SET statement_timeout = '5s'; SET search_path = public, extensions
+  data:
+    web:
+      pageable:
+        default-page-size: 20
+        max-page-size: 100
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+
+proxycare:
+  security:
+    jwt:
+      supabase-url: ${SUPABASE_URL:}
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID:}
+    key-secret: ${RAZORPAY_KEY_SECRET:}
+    webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+  google:
+    maps-api-key: ${GOOGLE_MAPS_API_KEY:}
+  uber:
+    client-id: ${UBER_CLIENT_ID:}
+    client-secret: ${UBER_CLIENT_SECRET:}
+
+server:
+  shutdown: graceful
+  error:
+    include-stacktrace: never
+    include-message: never
+    whitelabel:
+      enabled: false
+
+logging:
+  # Puts the traceId on every plain-text log line (structured formats include MDC anyway).
+  pattern:
+    correlation: "[%X{traceId:-}] "
+  include-application-name: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info

@@ -1,0 +1,9 @@
+{
+  "APP_ENV": "development",
+  "API_BASE_URL": "",
+  "APP_NAME": "Proxy Care (Widget showcase)",
+  "ENABLE_LOGGING": "false",
+  "FEATURE_FLAGS": "widget_showcase",
+  "SUPABASE_URL": "",
+  "SUPABASE_PUBLISHABLE_KEY": ""
+}

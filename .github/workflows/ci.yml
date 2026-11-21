@@ -1,0 +1,186 @@
+name: CI
+
+# Verifies the Flutter client on every pull request and every push to main:
+# web (with the generated-files check and config checks), Android and iOS.
+# Release builds are unsigned (iOS) or debug-key signed (Android): no
+# signing credentials are used, and nothing is deployed.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "proxy-care-client/**"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    paths:
+      - "proxy-care-client/**"
+      - ".github/workflows/ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # The pinned SDK. Change it here and in pages.yml and goldens.yml together.
+  FLUTTER_VERSION: 3.50.0
+
+jobs:
+  web:
+    name: Web (checks and release build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: proxy-care-client
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Show toolchain versions
+        run: |
+          flutter --version
+          dart --version
+
+      - name: Install dependencies
+        run: make get
+
+      - name: Generate code
+        run: make gen
+
+      - name: Format
+        run: make format
+
+      # pubspec.lock, generated files (build_runner, gen-l10n) and formatting
+      # are committed; regenerating them must change nothing. New untracked
+      # files are included so the diff shows them too.
+      - name: Committed lockfile, generated code and formatting are current
+        run: |
+          git add --intent-to-add --all .
+          git diff --exit-code -- .
+
+      - name: Analyze
+        run: make analyze
+
+      - name: Test
+        run: make test
+
+      - name: Development config is valid
+        run: make check-env ENV=development
+
+      - name: Release configs never fall back to development
+        run: |
+          # Without an API URL, production must be rejected.
+          jq '.API_BASE_URL = ""' config/env/production.json > /tmp/no_url.json
+          if dart run tool/check_env.dart /tmp/no_url.json; then
+            echo "check_env accepted production without API_BASE_URL"
+            exit 1
+          fi
+          # Without APP_ENV, a config must be rejected, not become development.
+          jq 'del(.APP_ENV)' config/env/development.json > /tmp/no_env.json
+          if dart run tool/check_env.dart /tmp/no_env.json; then
+            echo "check_env accepted a config without APP_ENV"
+            exit 1
+          fi
+
+      - name: Build web (release, development config)
+        run: make build-web
+
+  android:
+    name: Android (checks and release build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: proxy-care-client
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Install dependencies (locked)
+        run: make get-locked
+
+      - name: Generate code
+        run: make gen
+
+      - name: Check formatting
+        run: make format-check
+
+      - name: Analyze
+        run: make analyze
+
+      - name: Test
+        run: make test
+
+      - name: Build APK and App Bundle (release, development config)
+        run: make build-android
+
+  ios:
+    name: iOS (checks and unsigned release build)
+    runs-on: macos-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: proxy-care-client
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Show toolchain versions
+        run: |
+          flutter --version
+          xcodebuild -version
+
+      - name: Install dependencies (locked)
+        run: make get-locked
+
+      - name: Generate code
+        run: make gen
+
+      - name: Check formatting
+        run: make format-check
+
+      - name: Analyze
+        run: make analyze
+
+      # Goldens are skipped off Linux (TESTING.md).
+      - name: Test
+        run: make test
+
+      - name: Build iOS (release, unsigned, development config)
+        run: make build-ios

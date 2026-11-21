@@ -1,0 +1,28 @@
+# The database comes from the Testcontainers @ServiceConnection; everything here is clearly fake.
+spring:
+  flyway:
+    locations: classpath:db/migration, classpath:db/testmigration
+
+proxycare:
+  security:
+    jwt:
+      supabase-url: https://test.supabase.co
+  razorpay:
+    key-id: rzp_test_fake
+    key-secret: test-key-secret
+    webhook-secret: test-webhook-secret
+  google:
+    maps-api-key: test-maps-key
+  uber:
+    client-id: test-uber-client
+    client-secret: test-uber-secret
+
+# Plain-text logs (no structured format) and Swagger on.
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+# Short so IdempotencyConcurrencyTest sees a blocked duplicate time out quickly; fast actions never wait this long.
+proxycare.idempotency.lock-timeout: 500ms

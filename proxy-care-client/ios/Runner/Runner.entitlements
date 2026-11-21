@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Universal Links. app-links.invalid is a reserved placeholder: no
+	     domain is owned yet. Replace it with applinks:<APP_LINK_DOMAIN> and
+	     enable Associated Domains for the App ID (docs/deep-linking.md). -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:app-links.invalid</string>
+	</array>
+</dict>
+</plist>

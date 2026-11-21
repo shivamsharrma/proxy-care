@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Proxy Care widget showcase</title>
+  <!--
+    GitHub Pages serves this page for any path it has no file for. The app
+    uses hash URLs (/#/path), so a path link such as
+    /<repository>/widget-showcase is sent to /<repository>/#/widget-showcase.
+    The deploy workflow replaces __BASE_HREF__ with the site's base path.
+  -->
+  <script>
+    (function () {
+      var base = '__BASE_HREF__';
+      var path = window.location.pathname;
+      var route = path.indexOf(base) === 0 ? path.slice(base.length) : '';
+      window.location.replace(base + '#/' + route + window.location.search);
+    })();
+  </script>
+</head>
+<body></body>
+</html>

@@ -1,0 +1,8 @@
+# flutter gen-l10n configuration. The generated code is committed (see
+# README, "Generated files") and checked by CI.
+arb-dir: lib/core/l10n/arb
+template-arb-file: app_en.arb
+output-dir: lib/core/l10n/generated
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false

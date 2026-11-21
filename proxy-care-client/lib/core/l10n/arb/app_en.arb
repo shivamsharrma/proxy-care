@@ -1,0 +1,103 @@
+{
+  "@@locale": "en",
+
+  "errorNetwork": "Unable to connect. Please check your internet connection.",
+  "@errorNetwork": {
+    "description": "Shown when the app cannot reach the server (NETWORK_ERROR)."
+  },
+  "errorTimeout": "The request took too long. Please try again.",
+  "@errorTimeout": {
+    "description": "Shown when a request timed out (TIMEOUT)."
+  },
+  "errorUnauthenticated": "Your session has expired. Please sign in again.",
+  "@errorUnauthenticated": {
+    "description": "Shown when the session is missing or expired (UNAUTHENTICATED)."
+  },
+  "errorForbidden": "You don't have permission to perform this action.",
+  "@errorForbidden": {
+    "description": "Shown when the user may not perform the action (FORBIDDEN)."
+  },
+  "errorNotFound": "The requested information could not be found.",
+  "@errorNotFound": {
+    "description": "Shown when the requested resource does not exist (NOT_FOUND)."
+  },
+  "errorValidation": "Please check the entered information.",
+  "@errorValidation": {
+    "description": "Shown when the backend rejected the entered data (VALIDATION_ERROR). Also used next to a field the backend rejected."
+  },
+  "errorConflict": "This information has changed. Please refresh and try again.",
+  "@errorConflict": {
+    "description": "Shown when the data changed on the server meanwhile (CONFLICT)."
+  },
+  "errorBusinessRule": "This action cannot be completed at the moment.",
+  "@errorBusinessRule": {
+    "description": "Shown when a business rule prevents the action (BUSINESS_RULE_VIOLATION)."
+  },
+  "errorRateLimited": "Too many requests. Please try again later.",
+  "@errorRateLimited": {
+    "description": "Shown when the backend is rate limiting the user (RATE_LIMITED)."
+  },
+  "errorServer": "Something went wrong on our end. Please try again later.",
+  "@errorServer": {
+    "description": "Shown for server failures (SERVER_ERROR / INTERNAL_ERROR)."
+  },
+  "errorServiceUnavailable": "The service is temporarily unavailable. Please try again.",
+  "@errorServiceUnavailable": {
+    "description": "Shown when the service is down or overloaded (SERVICE_UNAVAILABLE)."
+  },
+  "errorUnknown": "Something went wrong. Please try again.",
+  "@errorUnknown": {
+    "description": "Shown for any error that has no more specific message (UNKNOWN_ERROR)."
+  },
+
+  "a11yBack": "Back",
+  "@a11yBack": {
+    "description": "Screen-reader label of the back button in the top app bar."
+  },
+  "a11yClose": "Close",
+  "@a11yClose": {
+    "description": "Screen-reader label of close buttons (top app bar, info tip)."
+  },
+  "a11yOtpField": "One-time code",
+  "@a11yOtpField": {
+    "description": "Screen-reader label of the one-time code input."
+  },
+  "a11yOtpDigit": "Digit {position} of {length}",
+  "@a11yOtpDigit": {
+    "description": "Screen-reader label of one cell of the one-time code input.",
+    "placeholders": {
+      "position": {
+        "type": "int",
+        "example": "3"
+      },
+      "length": {
+        "type": "int",
+        "example": "6"
+      }
+    }
+  },
+  "durationHours": "{count, plural, =1{1 hour} other{{count} hours}}",
+  "@durationHours": {
+    "description": "A duration in whole hours, e.g. the caretaker's booked block ('3 hours').",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "a11yStepProgress": "Step {current} of {total}",
+  "@a11yStepProgress": {
+    "description": "Screen-reader label of the step progress bar in multi-step flows.",
+    "placeholders": {
+      "current": {
+        "type": "int",
+        "example": "2"
+      },
+      "total": {
+        "type": "int",
+        "example": "5"
+      }
+    }
+  }
+}

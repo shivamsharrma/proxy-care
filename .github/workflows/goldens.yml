@@ -1,0 +1,55 @@
+name: Bless goldens
+
+# Regenerates golden images on the same runner and Flutter version as CI and
+# commits them to the branch it runs on ("Bless goldens" commit). Run it by
+# hand on a feature branch (never main) after an intended visual change,
+# then review every changed image against the design system before merging;
+# revert the commit if an image is wrong. CI never blesses goldens: it only
+# compares.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  goldens:
+    name: Bless golden images
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: proxy-care-client
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.50.0
+          cache: true
+
+      - name: Install dependencies
+        run: make get-locked
+
+      - name: Regenerate goldens
+        run: make goldens
+
+      - name: Commit golden images to the branch
+        run: |
+          if [ "$GITHUB_REF_NAME" = "main" ]; then
+            echo "Bless goldens on a feature branch, not main."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add test
+          if git diff --cached --quiet; then
+            echo "Golden images are unchanged."
+          else
+            git commit -m "Bless goldens"
+            git push
+          fi

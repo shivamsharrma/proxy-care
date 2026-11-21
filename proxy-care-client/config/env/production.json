@@ -1,0 +1,9 @@
+{
+  "APP_ENV": "production",
+  "API_BASE_URL": "",
+  "APP_NAME": "Proxy Care",
+  "ENABLE_LOGGING": "false",
+  "FEATURE_FLAGS": "",
+  "SUPABASE_URL": "",
+  "SUPABASE_PUBLISHABLE_KEY": ""
+}

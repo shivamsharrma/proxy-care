@@ -1,0 +1,6 @@
+# Test tags. Run a subset with `flutter test --tags <tag>`.
+tags:
+  golden:
+    description: >-
+      Golden image comparisons of design-system components. Blessed only by
+      the "Bless goldens" workflow (see TESTING.md).

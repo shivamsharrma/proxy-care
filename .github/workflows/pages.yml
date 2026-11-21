@@ -1,0 +1,91 @@
+name: Widget showcase (GitHub Pages)
+
+# Builds the Flutter Web widget showcase (config/env/showcase.json, route
+# /widget-showcase) and publishes it to GitHub Pages as a UI preview. It is
+# not a production deployment: the showcase build uses the development
+# configuration and calls no API.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "proxy-care-client/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time; a newer push waits instead of cancelling a
+# deployment that is already running.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Check and build showcase
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: proxy-care-client
+    env:
+      # Project sites are served from https://<owner>.github.io/<repository>/.
+      BASE_HREF: /${{ github.event.repository.name }}/
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.50.0
+          cache: true
+
+      - name: Install dependencies (locked)
+        run: make get-locked
+
+      - name: Generate code
+        run: make gen
+
+      - name: Format
+        run: make format-check
+
+      - name: Analyze
+        run: make analyze
+
+      - name: Test
+        run: make test
+
+      - name: Build web (release, showcase config)
+        run: make build-showcase BASE_HREF="$BASE_HREF"
+
+      # Path links (/<repository>/widget-showcase) and refreshes on them reach
+      # GitHub Pages' 404 page, which forwards to the hash URL the app uses.
+      - name: Add GitHub Pages redirect
+        run: |
+          sed "s|__BASE_HREF__|$BASE_HREF|g" tool/github_pages/404.html \
+            > build/web/404.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: proxy-care-client/build/web
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: "${{ steps.deployment.outputs.page_url }}#/widget-showcase"
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
