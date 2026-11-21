@@ -34,8 +34,32 @@ override providers, deterministic (injected clock, no real network).
 - Run: `maestro test maestro/<feature>/ --include-tags smoke`.
 
 ## Server
-JUnit 5 + AssertJ, Testcontainers (Postgres, Kafka), WireMock for providers,
-ArchUnit for layering, pgTAP for RLS.
+Canonical: `proxy-care-backend/README.md` → How to write tests. JUnit 5 +
+AssertJ, a real PostGIS container via Testcontainers, WireMock for vendor
+gateways once they exist.
+
+- **Unit test:** plain JUnit, no Spring, for pure logic (mappers, value rules).
+- **Integration test:** `extends support/IntegrationTest` for anything needing
+  Spring, the database or HTTP. It gives `mockMvc`, `objectMapper`, `testDb`,
+  `mutableClock`, `testTokens`; every test starts with empty tables and the
+  clock reset. All integration tests share one context and one container.
+- **Data:** set up with `TestDb` (add a helper there when needed). Never mock
+  the database or repositories.
+- **Time:** `mutableClock.set(...)` / `.advance(...)`. Never `Thread.sleep`.
+- **Auth:** `testTokens.forUser(id, phone)` or `bearer(id)`; negative cases via
+  `testTokens.builder(...)` (`expired()`, `issuer(..)`, `audience(..)`,
+  `signedWithOtherKey()`, `rs256()`). Every endpoint gets a 401 test; one
+  that reads or changes an owned resource also gets a "someone else's
+  resource is 404" test.
+- **Errors:** `ApiErrorAssert.assertApiError(result, status, code)`.
+- **Context:** no `@MockitoBean`, `@TestPropertySource` or other context
+  changes — each starts a second context and container.
+- **Schema:** test-only tables in the `test_support` schema
+  (`src/test/resources/db/testmigration`), never `public`. RLS on every table
+  is checked by `RlsEnabledTest`.
+- **Naming:** `<Thing>Test` in the same package as the class under test;
+  method names state the behaviour (`neverReturnsSomeoneElsesProfile`).
+- Run: `./gradlew clean build` in `proxy-care-backend` (CI: `backend.yml`).
 
 ## Rules
 - Write the failing test first; show it failing for the right reason.
