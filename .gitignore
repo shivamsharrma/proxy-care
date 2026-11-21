@@ -1,0 +1,4 @@
+# Claude Code: per-run work artifacts and personal overrides
+.claude/work/
+.claude/settings.local.json
+CLAUDE.local.md

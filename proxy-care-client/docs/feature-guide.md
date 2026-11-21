@@ -30,7 +30,9 @@ test/features/visits/ …   (mirrors the above)
 Create `lib/features/<feature>/` with `domain/`, `data/` and
 `presentation/`. Name it after the business capability (`visits`,
 `payments`), lowerCamelCase in code (`RouteModule.name`), snake_case in
-file names. A feature may use another feature's **domain** only.
+file names. A feature may use another feature's **domain** only. If the
+feature introduces a new kind of folder, add its import rules to
+`test/architecture/dependency_rules_test.dart`.
 
 ## 2. Define domain entities
 
@@ -191,10 +193,18 @@ final class UpcomingVisitsController extends AsyncNotifier<List<Visit>> {
 }
 ```
 
-The widget switches on the `AsyncValue` (loading, error with
-`AppLocalizations.of(context).failureMessage(failure)` and a retry that invalidates the
-provider, data), and formats values with `appFormattersProvider`
-(`instantDateTime`, `rupees`).
+The widget switches on the `AsyncValue` and renders every state explicitly
+— loading, error (with `AppLocalizations.of(context).failureMessage(failure)`
+and a retry that invalidates the provider), empty and data; never a silent
+spinner. It formats values with `appFormattersProvider` (`instantDateTime`,
+`rupees`).
+
+Async safety in controllers and widgets:
+
+- After every `await`, check `context.mounted` (widget) or `ref.mounted`
+  (notifier) before touching context or state.
+- Never drop a Future in a callback: `onTap: () => controller.save()` loses
+  `save`'s errors. Make the handler `async`, `await` it and handle the failure.
 
 ## 10. Register routes
 
@@ -247,7 +257,9 @@ Build screens only from `lib/shared/widgets/` (`PcButton`, `PcCard`,
 components that the design system does not define
 ([design-system-mapping.md](design-system-mapping.md)). Every user-facing
 string is an ARB message (`lib/core/l10n/README.md`); every interactive
-element has a semantic label.
+element has a semantic label and the 48 px minimum target
+(design-system-mapping.md, A14). Layouts adapt to the available space
+(`LayoutBuilder`, `MediaQuery.sizeOf`), never to platform checks.
 
 ## 12. Add tests
 
