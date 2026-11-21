@@ -1,0 +1,26 @@
+# Security
+
+- **Secrets:** never read, print, or commit `.env*`, `*.pem`, `*.p12`,
+  `*.jks`, `*.keystore`, `key.properties`, `google-services.json`,
+  `GoogleService-Info.plist`, `~/.aws/*`, or anything under `secrets/`.
+  Hooks block this; don't try to work around them. Need a value? Ask the user.
+- `proxy-care-client/config/env/*.json` is committed and holds only public
+  values (API URL, Supabase URL + publishable key, Razorpay `key_id`).
+- **AuthZ on the server.** The client hides UI; the server enforces. Every
+  booking/payment/ride endpoint checks the caller owns or is assigned to the
+  resource (mirror `*_access_control.feature`).
+- **Input:** validate at the boundary (Bean Validation / domain factories);
+  parameterized queries only; no string-built SQL or JPQL.
+- **Webhooks** (Razorpay, Uber): verify signature on the raw body, reject
+  stale timestamps, dedupe event ids, respond 2xx only after durable record.
+- **PII:** patient names, phone numbers, addresses, medical purposes, pickup
+  codes, live location — never in logs, analytics, crash reports, Kafka
+  payloads beyond ids, or URLs. Redact via the client's redacting logger.
+- **Pickup code / OTP:** generated server-side, single-use, rate-limited
+  verification, compared in constant time.
+- **Mobile:** no cleartext traffic except the documented local-debug
+  exception; backups disabled; deep links validated before navigation.
+- **Dependencies:** no new package without checking maintenance, licence and
+  transitive tree; no telemetry SDKs without a decision.
+- Destructive or outward-facing actions (deploys, migrations on shared DBs,
+  refunds, `gh pr merge`) require explicit human approval each time.

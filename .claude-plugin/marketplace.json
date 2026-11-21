@@ -1,0 +1,17 @@
+{
+  "name": "proxy-care",
+  "owner": {
+    "name": "shivamsharrma"
+  },
+  "metadata": {
+    "description": "Local marketplace for the Proxy Care delivery workflow plugin."
+  },
+  "plugins": [
+    {
+      "name": "proxy-care-sdlc",
+      "source": "./",
+      "description": "Agentic delivery workflow for Proxy Care (skills, subagents, hooks, MCP).",
+      "version": "0.1.0"
+    }
+  ]
+}

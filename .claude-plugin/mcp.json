@@ -1,0 +1,35 @@
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/readonly",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN:-}"
+      }
+    },
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?read_only=true&project_ref=${SUPABASE_PROJECT_REF:-}&features=database,docs,debugging,development"
+    },
+    "aws": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["awslabs.aws-api-mcp-server@latest"],
+      "env": {
+        "READ_OPERATIONS_ONLY": "true",
+        "REQUIRE_MUTATION_CONSENT": "true",
+        "AWS_REGION": "${AWS_REGION:-ap-south-1}",
+        "AWS_API_MCP_PROFILE_NAME": "${AWS_PROFILE:-proxycare-readonly}"
+      }
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "maestro": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/.claude/mcp/maestro-mcp.js"]
+    }
+  }
+}
