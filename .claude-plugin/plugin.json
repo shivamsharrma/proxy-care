@@ -1,0 +1,25 @@
+{
+  "name": "proxy-care-sdlc",
+  "version": "0.1.0",
+  "description": "Agentic delivery workflow for Proxy Care: /ship pipeline (plan, failing tests, implement, parallel review, verify, PR), domain skills, subagents, safety hooks and read-only MCP servers.",
+  "author": {
+    "name": "shivamsharrma"
+  },
+  "repository": "https://github.com/shivamsharrma/proxy-care",
+  "keywords": ["sdlc", "flutter", "spring-boot", "maestro", "atdd"],
+  "skills": "./.claude/skills/",
+  "agents": [
+    "./.claude/agents/planner.md",
+    "./.claude/agents/test-writer.md",
+    "./.claude/agents/flutter-implementer.md",
+    "./.claude/agents/spring-implementer.md",
+    "./.claude/agents/reviewer-correctness.md",
+    "./.claude/agents/reviewer-security.md",
+    "./.claude/agents/reviewer-architecture.md",
+    "./.claude/agents/reviewer-tests.md",
+    "./.claude/agents/verifier.md",
+    "./.claude/agents/release-manager.md"
+  ],
+  "hooks": "./.claude-plugin/hooks.json",
+  "mcpServers": "./.claude-plugin/mcp.json"
+}
