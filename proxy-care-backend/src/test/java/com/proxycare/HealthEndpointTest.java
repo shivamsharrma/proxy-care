@@ -11,7 +11,7 @@ class HealthEndpointTest extends IntegrationTest {
 
     @Test
     void healthIsUpWithoutAuthentication() throws Exception {
-        mvc.perform(get("/actuator/health"))
+        mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"));
     }

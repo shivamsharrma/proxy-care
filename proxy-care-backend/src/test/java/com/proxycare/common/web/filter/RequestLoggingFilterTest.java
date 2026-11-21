@@ -1,4 +1,4 @@
-package com.proxycare.common.web;
+package com.proxycare.common.web.filter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -15,7 +15,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.MediaType;
 
 @ExtendWith(OutputCaptureExtension.class)
-class AccessLogTest extends IntegrationTest {
+class RequestLoggingFilterTest extends IntegrationTest {
 
     private static final String PHONE = "+919812345678";
     private static final String OTP = "482913";
@@ -24,7 +24,7 @@ class AccessLogTest extends IntegrationTest {
 
     @Test
     void oneAccessLineWithMethodPathStatusAndDuration(CapturedOutput output) throws Exception {
-        mvc.perform(get("/api/v1/_probe/items").header("Authorization", bearer(userId)))
+        mockMvc.perform(get("/api/v1/_probe/items").header("Authorization", bearer(userId)))
                 .andExpect(status().isOk());
 
         assertThat(accessLines(output, "GET /api/v1/_probe/items 200")).isEqualTo(1);
@@ -32,7 +32,7 @@ class AccessLogTest extends IntegrationTest {
 
     @Test
     void successfulRequestDoesNotLogPhoneOrOtp(CapturedOutput output) throws Exception {
-        mvc.perform(post("/api/v1/_probe/validated")
+        mockMvc.perform(post("/api/v1/_probe/validated")
                         .header("Authorization", bearer(userId))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body(30)))
@@ -43,8 +43,22 @@ class AccessLogTest extends IntegrationTest {
     }
 
     @Test
+    void accessLineCarriesTheTraceIdNotTheUser(CapturedOutput output) throws Exception {
+        String traceId = mockMvc.perform(get("/api/v1/_probe/items").header("Authorization", bearer(userId)))
+                .andReturn()
+                .getResponse()
+                .getHeader(TraceIdFilter.TRACE_ID_HEADER);
+
+        assertThat(output.getOut().lines()
+                        .filter(l -> l.contains("GET /api/v1/_probe/items 200"))
+                        .filter(l -> l.endsWith("traceId=" + traceId)))
+                .hasSize(1);
+        assertThat(output.getOut()).doesNotContain(userId.toString());
+    }
+
+    @Test
     void validationFailureDoesNotLogPhoneOrOtp(CapturedOutput output) throws Exception {
-        mvc.perform(post("/api/v1/_probe/validated")
+        mockMvc.perform(post("/api/v1/_probe/validated")
                         .header("Authorization", bearer(userId))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body(500)))

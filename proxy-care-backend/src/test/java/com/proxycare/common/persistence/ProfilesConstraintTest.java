@@ -17,24 +17,24 @@ class ProfilesConstraintTest extends IntegrationTest {
             "insert into profiles (id, roles, phone, preferred_language) values (?, '{USER}', ?, ?)";
 
     @Autowired
-    JdbcTemplate jdbc;
+    JdbcTemplate jdbcTemplate;
 
     @Test
     void invalidPreferredLanguageIsRejected() {
         var id = UUID.randomUUID();
-        db.insertAuthUser(id);
+        testDb.insertAuthUser(id);
 
-        assertThatThrownBy(() -> jdbc.update(INSERT, id, "+919876543210", "fr"))
+        assertThatThrownBy(() -> jdbcTemplate.update(INSERT, id, "+919876543210", "fr"))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     void validProfileInserts() {
         var id = UUID.randomUUID();
-        db.insertAuthUser(id);
+        testDb.insertAuthUser(id);
 
-        jdbc.update(INSERT, id, "+919876543210", "hi");
+        jdbcTemplate.update(INSERT, id, "+919876543210", "hi");
 
-        assertThat(db.count("profiles")).isEqualTo(1);
+        assertThat(testDb.count("profiles")).isEqualTo(1);
     }
 }

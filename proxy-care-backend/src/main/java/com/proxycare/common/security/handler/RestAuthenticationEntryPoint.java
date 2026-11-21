@@ -23,13 +23,13 @@ public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
     private static final String BEARER_CHALLENGE = "Bearer";
 
-    private final ApiErrorResponseWriter errors;
+    private final ApiErrorResponseWriter apiErrorResponseWriter;
 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException ex)
             throws IOException {
         response.setHeader(HttpHeaders.WWW_AUTHENTICATE, BEARER_CHALLENGE);
-        errors.write(response, ErrorCode.UNAUTHENTICATED, SecurityMessages.UNAUTHENTICATED);
+        apiErrorResponseWriter.write(response, ErrorCode.UNAUTHENTICATED, SecurityMessages.UNAUTHENTICATED);
     }
 
 }

@@ -21,11 +21,11 @@ class SharedContainerTest {
     class First extends IntegrationTest {
 
         @Autowired
-        PostgreSQLContainer postgres;
+        PostgreSQLContainer postgreSQLContainer;
 
         @Test
         void recordsJdbcUrl() {
-            firstJdbcUrl = postgres.getJdbcUrl();
+            firstJdbcUrl = postgreSQLContainer.getJdbcUrl();
             assertThat(firstJdbcUrl).isNotBlank();
         }
     }
@@ -35,11 +35,11 @@ class SharedContainerTest {
     class Second extends IntegrationTest {
 
         @Autowired
-        PostgreSQLContainer postgres;
+        PostgreSQLContainer postgreSQLContainer;
 
         @Test
         void seesTheSameJdbcUrl() {
-            assertThat(postgres.getJdbcUrl()).isEqualTo(firstJdbcUrl);
+            assertThat(postgreSQLContainer.getJdbcUrl()).isEqualTo(firstJdbcUrl);
         }
     }
 }

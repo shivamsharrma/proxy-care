@@ -15,12 +15,12 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
 class TestTokensTest {
 
-    private final MutableClock clock = new MutableClock();
-    private final TestTokens tokens = new TestTokens(clock);
-    private final NimbusJwtDecoder decoder = decoder();
+    private final MutableClock mutableClock = new MutableClock();
+    private final TestTokens testTokens = new TestTokens(mutableClock);
+    private final NimbusJwtDecoder nimbusJwtDecoder = decoder();
 
     private NimbusJwtDecoder decoder() {
-        var decoder = NimbusJwtDecoder.withJwkSource(new ImmutableJWKSet<>(tokens.publicJwkSet()))
+        var nimbusJwtDecoder = NimbusJwtDecoder.withJwkSource(new ImmutableJWKSet<>(testTokens.publicJwkSet()))
                 .jwsAlgorithms(algs -> {
                     algs.add(SignatureAlgorithm.ES256);
                     algs.add(SignatureAlgorithm.RS256);
@@ -29,16 +29,16 @@ class TestTokensTest {
         // Without the test clock Nimbus would check exp against real time, and the
         // January 2026 tokens would count as expired.
         var timestamps = new JwtTimestampValidator();
-        timestamps.setClock(clock);
-        decoder.setJwtValidator(timestamps);
-        return decoder;
+        timestamps.setClock(mutableClock);
+        nimbusJwtDecoder.setJwtValidator(timestamps);
+        return nimbusJwtDecoder;
     }
 
     @Test
     void forUserTokenDecodesWithExpectedClaims() {
         var id = UUID.randomUUID();
 
-        var jwt = decoder.decode(tokens.forUser(id, "+919876543210"));
+        var jwt = nimbusJwtDecoder.decode(testTokens.forUser(id, "+919876543210"));
 
         assertThat(jwt.getHeaders()).containsEntry("alg", "ES256");
         assertThat(jwt.getSubject()).isEqualTo(id.toString());
@@ -46,28 +46,28 @@ class TestTokensTest {
         assertThat(jwt.getClaimAsString("role")).isEqualTo("authenticated");
         assertThat(jwt.getIssuer().toString()).isEqualTo("https://test.supabase.co/auth/v1");
         assertThat(jwt.getAudience()).containsExactly("authenticated");
-        assertThat(jwt.getIssuedAt()).isEqualTo(clock.instant());
-        assertThat(jwt.getExpiresAt()).isEqualTo(clock.instant().plus(Duration.ofHours(1)));
+        assertThat(jwt.getIssuedAt()).isEqualTo(mutableClock.instant());
+        assertThat(jwt.getExpiresAt()).isEqualTo(mutableClock.instant().plus(Duration.ofHours(1)));
     }
 
     @Test
     void rs256TokenDecodes() {
-        var jwt = decoder.decode(tokens.builder(UUID.randomUUID(), "+919876543210").rs256().build());
+        var jwt = nimbusJwtDecoder.decode(testTokens.builder(UUID.randomUUID(), "+919876543210").rs256().build());
 
         assertThat(jwt.getHeaders()).containsEntry("alg", "RS256");
     }
 
     @Test
     void expiredTokenIsRejectedByTimestampValidator() {
-        var token = tokens.builder(UUID.randomUUID(), "+919876543210").expired().build();
+        var token = testTokens.builder(UUID.randomUUID(), "+919876543210").expired().build();
 
-        assertThatThrownBy(() -> decoder.decode(token)).isInstanceOf(JwtValidationException.class);
+        assertThatThrownBy(() -> nimbusJwtDecoder.decode(token)).isInstanceOf(JwtValidationException.class);
     }
 
     @Test
     void tokenSignedWithOtherKeyFailsToDecode() {
-        var token = tokens.builder(UUID.randomUUID(), "+919876543210").signedWithOtherKey().build();
+        var token = testTokens.builder(UUID.randomUUID(), "+919876543210").signedWithOtherKey().build();
 
-        assertThatThrownBy(() -> decoder.decode(token)).isInstanceOf(BadJwtException.class);
+        assertThatThrownBy(() -> nimbusJwtDecoder.decode(token)).isInstanceOf(BadJwtException.class);
     }
 }

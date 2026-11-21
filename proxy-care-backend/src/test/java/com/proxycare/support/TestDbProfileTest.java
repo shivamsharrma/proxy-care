@@ -10,27 +10,27 @@ import org.springframework.jdbc.core.JdbcTemplate;
 class TestDbProfileTest extends IntegrationTest {
 
     @Autowired
-    JdbcTemplate jdbc;
+    JdbcTemplate jdbcTemplate;
 
     @Test
     void insertProfileCreatesAuthUserAndProfile() {
         var id = UUID.randomUUID();
 
-        db.insertProfile(id, "+919876543210", "USER", "CARETAKER");
+        testDb.insertProfile(id, "+919876543210", "USER", "CARETAKER");
 
-        assertThat(db.count("auth.users")).isEqualTo(1);
-        assertThat(jdbc.queryForObject(
+        assertThat(testDb.count("auth.users")).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
                         "select array_to_string(roles, ',') from profiles where id = ?", String.class, id))
                 .isEqualTo("USER,CARETAKER");
     }
 
     @Test
     void truncateAllRemovesBoth() {
-        db.insertProfile(UUID.randomUUID(), "+919876543210", "USER");
+        testDb.insertProfile(UUID.randomUUID(), "+919876543210", "USER");
 
-        db.truncateAll();
+        testDb.truncateAll();
 
-        assertThat(db.count("auth.users")).isZero();
-        assertThat(db.count("profiles")).isZero();
+        assertThat(testDb.count("auth.users")).isZero();
+        assertThat(testDb.count("profiles")).isZero();
     }
 }

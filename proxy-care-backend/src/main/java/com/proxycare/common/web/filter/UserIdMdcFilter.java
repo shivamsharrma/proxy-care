@@ -19,7 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @RequiredArgsConstructor
 public class UserIdMdcFilter extends OncePerRequestFilter {
 
-    private final ISecurityIdentityProvider identity;
+    private final ISecurityIdentityProvider securityIdentityProvider;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
@@ -33,7 +33,7 @@ public class UserIdMdcFilter extends OncePerRequestFilter {
     }
 
     private void addUserIdToLogContext() {
-        identity.getCurrentPrincipal()
+        securityIdentityProvider.getCurrentPrincipal()
                 .map(AuthenticatedPrincipal::userId)
                 .ifPresent(userId -> MDC.put(MdcKeys.USER_ID, userId.toString()));
     }

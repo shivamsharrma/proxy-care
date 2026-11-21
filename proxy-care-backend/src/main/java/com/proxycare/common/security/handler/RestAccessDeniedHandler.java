@@ -20,12 +20,12 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class RestAccessDeniedHandler implements AccessDeniedHandler {
 
-    private final ApiErrorResponseWriter errors;
+    private final ApiErrorResponseWriter apiErrorResponseWriter;
 
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException ex)
             throws IOException {
-        errors.write(response, ErrorCode.ACCESS_DENIED, SecurityMessages.ACCESS_DENIED);
+        apiErrorResponseWriter.write(response, ErrorCode.ACCESS_DENIED, SecurityMessages.ACCESS_DENIED);
     }
 
 }

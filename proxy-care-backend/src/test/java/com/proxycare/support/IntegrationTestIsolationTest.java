@@ -15,26 +15,26 @@ import org.springframework.beans.factory.annotation.Autowired;
 class IntegrationTestIsolationTest extends IntegrationTest {
 
     @Autowired
-    Clock clockBean;
+    Clock clock;
 
     @Test
     @Order(1)
     void firstTestInsertsAndMovesTheClock() {
-        db.insertAuthUser(UUID.randomUUID());
-        clock.advance(Duration.ofDays(1));
+        testDb.insertAuthUser(UUID.randomUUID());
+        mutableClock.advance(Duration.ofDays(1));
 
-        assertThat(db.count("auth.users")).isEqualTo(1);
+        assertThat(testDb.count("auth.users")).isEqualTo(1);
     }
 
     @Test
     @Order(2)
     void secondTestStartsEmptyAtTheDefaultTime() {
-        assertThat(db.count("auth.users")).isZero();
-        assertThat(clock.instant()).isEqualTo(MutableClock.DEFAULT_INSTANT);
+        assertThat(testDb.count("auth.users")).isZero();
+        assertThat(mutableClock.instant()).isEqualTo(MutableClock.DEFAULT_INSTANT);
     }
 
     @Test
     void injectedClockIsTheMutableClock() {
-        assertThat(clockBean).isSameAs(clock);
+        assertThat(clock).isSameAs(mutableClock);
     }
 }

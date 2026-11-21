@@ -13,7 +13,7 @@ class InfoEndpointTest extends IntegrationTest {
 
     @Test
     void showsBuildVersionAndGitCommit() throws Exception {
-        mvc.perform(get("/actuator/info"))
+        mockMvc.perform(get("/actuator/info"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.build.version", not(blankOrNullString())))
                 .andExpect(jsonPath("$.git.commit.id", not(blankOrNullString())));

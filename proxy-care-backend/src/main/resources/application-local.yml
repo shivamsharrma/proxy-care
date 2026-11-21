@@ -1,6 +1,9 @@
 # Local run against docker compose (or `supabase start`). Override with env vars as needed.
 spring:
+  config:
+    # Credentials for a local run (see .env.example); absent in Docker, where compose sets them.
+    import: optional:file:.env[.properties]
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/proxycare}
-    username: ${DB_USER:proxycare}
-    password: ${DB_PASSWORD:proxycare}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/proxy-care}
+    username: ${DB_USER:proxy-care}
+    password: ${DB_PASSWORD:proxy-care}

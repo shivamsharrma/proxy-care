@@ -9,16 +9,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.ResultActions;
 
-/** The one way to assert the API's RFC 9457 error format. */
-public final class ProblemJsonAssert {
+/** The one way to assert the API's ApiError format. */
+public final class ApiErrorAssert {
 
-    private ProblemJsonAssert() {}
+    private ApiErrorAssert() {}
 
-    public static ResultActions assertProblem(ResultActions result, int status, String code) throws Exception {
+    public static ResultActions assertApiError(ResultActions result, int status, String code) throws Exception {
         return result.andExpect(status().is(status))
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.status").value(status))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.code").value(code))
-                .andExpect(jsonPath("$.requestId", not(blankOrNullString())));
+                .andExpect(jsonPath("$.message", not(blankOrNullString())))
+                .andExpect(jsonPath("$.meta.traceId", not(blankOrNullString())))
+                .andExpect(jsonPath("$.meta.timestamp", not(blankOrNullString())));
     }
 }

@@ -7,15 +7,15 @@ import org.springframework.jdbc.core.JdbcTemplate;
 /** Data setup for integration tests. Tests use real tables; never mock the database. */
 public class TestDb {
 
-    private final JdbcTemplate jdbc;
+    private final JdbcTemplate jdbcTemplate;
 
-    public TestDb(JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
+    public TestDb(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     /** Empties every app table in public, every test_support table, and auth.users. */
     public void truncateAll() {
-        List<String> tables = jdbc.queryForList(
+        List<String> tables = jdbcTemplate.queryForList(
                 """
                 select format('%I.%I', schemaname, tablename) from pg_tables
                 where (schemaname in ('public', 'test_support')
@@ -23,17 +23,17 @@ public class TestDb {
                    or (schemaname = 'auth' and tablename = 'users')
                 """,
                 String.class);
-        jdbc.execute("truncate table " + String.join(", ", tables) + " cascade");
+        jdbcTemplate.execute("truncate table " + String.join(", ", tables) + " cascade");
     }
 
     public void insertAuthUser(UUID id) {
-        jdbc.update("insert into auth.users (id) values (?)", id);
+        jdbcTemplate.update("insert into auth.users (id) values (?)", id);
     }
 
     /** Inserts the auth.users row and a profile with the given roles (USER, CARETAKER, ADMIN). */
     public void insertProfile(UUID id, String phone, String... roles) {
         insertAuthUser(id);
-        jdbc.update(
+        jdbcTemplate.update(
                 "insert into profiles (id, phone, roles) values (?, ?, ?::app_role[])",
                 id,
                 phone,
@@ -42,6 +42,6 @@ public class TestDb {
 
     /** Row count of a table; {@code table} is a literal from test code, e.g. "auth.users". */
     public long count(String table) {
-        return jdbc.queryForObject("select count(*) from " + table, Long.class);
+        return jdbcTemplate.queryForObject("select count(*) from " + table, Long.class);
     }
 }

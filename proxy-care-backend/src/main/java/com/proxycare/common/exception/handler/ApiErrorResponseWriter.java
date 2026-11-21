@@ -17,13 +17,13 @@ import tools.jackson.databind.json.JsonMapper;
 @RequiredArgsConstructor
 public class ApiErrorResponseWriter {
 
-    private final ApiErrorFactory apiErrors;
+    private final ApiErrorFactory apiErrorFactory;
     private final JsonMapper jsonMapper;
 
     public void write(HttpServletResponse response, ErrorCode errorCode, String message) throws IOException {
         response.setStatus(errorCode.getStatus().value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        jsonMapper.writeValue(response.getOutputStream(), apiErrors.create(errorCode, message));
+        jsonMapper.writeValue(response.getOutputStream(), apiErrorFactory.create(errorCode, message));
     }
 }

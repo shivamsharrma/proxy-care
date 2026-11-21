@@ -20,17 +20,17 @@ public class RequestBodySizeLimitFilter extends OncePerRequestFilter {
 
     private static final String TOO_LARGE_MESSAGE = "The request body is larger than 1 MB";
 
-    private final ApiErrorResponseWriter errors;
+    private final ApiErrorResponseWriter apiErrorResponseWriter;
 
-    public RequestBodySizeLimitFilter(ApiErrorResponseWriter errors) {
-        this.errors = errors;
+    public RequestBodySizeLimitFilter(ApiErrorResponseWriter apiErrorResponseWriter) {
+        this.apiErrorResponseWriter = apiErrorResponseWriter;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         if (isTooLarge(request)) {
-            errors.write(response, ErrorCode.PAYLOAD_TOO_LARGE, TOO_LARGE_MESSAGE);
+            apiErrorResponseWriter.write(response, ErrorCode.PAYLOAD_TOO_LARGE, TOO_LARGE_MESSAGE);
             return;
         }
         chain.doFilter(request, response);

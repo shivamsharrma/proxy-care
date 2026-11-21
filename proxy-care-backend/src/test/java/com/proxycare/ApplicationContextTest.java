@@ -10,10 +10,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 class ApplicationContextTest extends IntegrationTest {
 
     @Autowired
-    JdbcTemplate jdbc;
+    JdbcTemplate jdbcTemplate;
 
     @Test
     void contextLoadsAgainstTestcontainersDatabase() {
-        assertThat(jdbc.queryForObject("show server_version", String.class)).startsWith("17");
+        assertThat(jdbcTemplate.queryForObject("show server_version", String.class)).startsWith("17");
     }
 }

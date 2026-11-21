@@ -4,8 +4,9 @@ spring:
     locations: classpath:db/migration, classpath:db/testmigration
 
 proxycare:
-  supabase:
-    url: https://test.supabase.co
+  security:
+    jwt:
+      supabase-url: https://test.supabase.co
   razorpay:
     key-id: rzp_test_fake
     key-secret: test-key-secret

@@ -22,28 +22,28 @@ import tools.jackson.databind.ObjectMapper;
 public abstract class IntegrationTest {
 
     @Autowired
-    protected MockMvc mvc;
+    protected MockMvc mockMvc;
 
     @Autowired
-    protected ObjectMapper json;
+    protected ObjectMapper objectMapper;
 
     @Autowired
-    protected TestDb db;
+    protected TestDb testDb;
 
     @Autowired
-    protected MutableClock clock;
+    protected MutableClock mutableClock;
 
     @Autowired
-    protected TestTokens tokens;
+    protected TestTokens testTokens;
 
     @BeforeEach
     void resetState() {
-        db.truncateAll();
-        clock.reset();
+        testDb.truncateAll();
+        mutableClock.reset();
     }
 
     /** {@code Authorization} header value with a valid token for the user. */
     protected String bearer(UUID userId) {
-        return "Bearer " + tokens.forUser(userId, "+919876543210");
+        return "Bearer " + testTokens.forUser(userId, "+919876543210");
     }
 }

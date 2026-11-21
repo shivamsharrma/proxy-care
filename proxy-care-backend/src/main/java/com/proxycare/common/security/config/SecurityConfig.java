@@ -2,9 +2,7 @@ package com.proxycare.common.security.config;
 
 import com.proxycare.common.security.handler.RestAccessDeniedHandler;
 import com.proxycare.common.security.handler.RestAuthenticationEntryPoint;
-import com.proxycare.common.security.jwt.JwtProperties;
 import com.proxycare.common.security.jwt.SupabaseJwtAuthenticationConverter;
-import com.proxycare.common.security.jwt.SupabaseJwtDecoderFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -16,12 +14,10 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 
-import java.net.MalformedURLException;
-import java.time.Clock;
 
 /**
  * Stateless bearer-token security: which paths are public, which need a Supabase token, and how failures
- * are answered. How a token is verified lives in {@link SupabaseJwtDecoderFactory}.
+ * are answered. How a token is verified lives in the jwt package.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableWebSecurity
@@ -38,9 +34,9 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             JwtDecoder jwtDecoder,
-            SupabaseJwtAuthenticationConverter jwtConverter,
-            RestAuthenticationEntryPoint unauthenticatedHandler,
-            RestAccessDeniedHandler accessDeniedHandler
+            SupabaseJwtAuthenticationConverter supabaseJwtAuthenticationConverter,
+            RestAuthenticationEntryPoint restAuthenticationEntryPoint,
+            RestAccessDeniedHandler restAccessDeniedHandler
     ) throws Exception {
 
         disableBrowserSessionFeatures(http);
@@ -48,18 +44,15 @@ public class SecurityConfig {
         return http
                 .authorizeHttpRequests(SecurityConfig::authorizePaths)
                 .oauth2ResourceServer(oauth -> oauth
-                        .jwt(jwt -> jwt.decoder(jwtDecoder).jwtAuthenticationConverter(jwtConverter))
-                        .authenticationEntryPoint(unauthenticatedHandler)
-                        .accessDeniedHandler(accessDeniedHandler))
+                        .jwt(jwt -> jwt
+                                .decoder(jwtDecoder)
+                                .jwtAuthenticationConverter(supabaseJwtAuthenticationConverter))
+                        .authenticationEntryPoint(restAuthenticationEntryPoint)
+                        .accessDeniedHandler(restAccessDeniedHandler))
                 .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint(unauthenticatedHandler)
-                        .accessDeniedHandler(accessDeniedHandler))
+                        .authenticationEntryPoint(restAuthenticationEntryPoint)
+                        .accessDeniedHandler(restAccessDeniedHandler))
                 .build();
-    }
-
-    @Bean
-    JwtDecoder jwtDecoder(JwtProperties properties, Clock clock) throws MalformedURLException {
-        return SupabaseJwtDecoderFactory.fromSupabaseJwks(properties, clock);
     }
 
     /**

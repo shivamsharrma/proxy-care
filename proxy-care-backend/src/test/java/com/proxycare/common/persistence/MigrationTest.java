@@ -10,11 +10,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 class MigrationTest extends IntegrationTest {
 
     @Autowired
-    JdbcTemplate jdbc;
+    JdbcTemplate jdbcTemplate;
 
     @Test
     void appMigrationsAppliedSuccessfully() {
-        var applied = jdbc.queryForList(
+        var applied = jdbcTemplate.queryForList(
                 "select version from flyway_schema_history where success and version in ('1', '2') order by installed_rank",
                 String.class);
 
@@ -23,7 +23,7 @@ class MigrationTest extends IntegrationTest {
 
     @Test
     void postgisExtensionExists() {
-        assertThat(jdbc.queryForObject("select count(*) from pg_extension where extname = 'postgis'", Long.class))
+        assertThat(jdbcTemplate.queryForObject("select count(*) from pg_extension where extname = 'postgis'", Long.class))
                 .isEqualTo(1);
     }
 }

@@ -44,7 +44,8 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         return (System.nanoTime() - startNanos) / 1_000_000;
     }
 
-    private static void logCompletedRequest(HttpServletRequest request, HttpServletResponse response, long elapsedMillis) {
+    private static void logCompletedRequest(
+            HttpServletRequest request, HttpServletResponse response, long elapsedMillis) {
         log.info(
                 "{} {} {} {}ms traceId={}",
                 request.getMethod(),

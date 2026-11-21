@@ -1,41 +1,62 @@
-package com.proxycare.common.security;
+package com.proxycare.common.security.jwt;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.proxycare.common.security.CurrentUser.Role;
-import java.util.EnumSet;
+import com.proxycare.common.security.authorization.Role;
+import com.proxycare.common.security.identity.AuthenticatedPrincipal;
+import com.proxycare.support.IntegrationTest;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 
-class SupabaseJwtConverterTest {
+/** Roles come from the database, so this runs against the real profiles table. */
+class SupabaseJwtAuthenticationConverterTest extends IntegrationTest {
 
-    private final UUID id = UUID.randomUUID();
-    private final Jwt jwt = Jwt.withTokenValue("token")
-            .header("alg", "ES256")
-            .subject(id.toString())
-            .claim("phone", "919876543210")
-            .build();
+    @Autowired
+    SupabaseJwtAuthenticationConverter supabaseJwtAuthenticationConverter;
+
+    private final UUID userId = UUID.randomUUID();
 
     @Test
-    void mapsClaimsAndRoles() {
-        var auth = SupabaseJwtConverter.authentication(jwt, EnumSet.of(Role.USER, Role.CARETAKER));
+    void mapsIdentityFromTheTokenAndRolesFromTheProfile() {
+        testDb.insertProfile(userId, "+919876543210", "USER", "CARETAKER");
 
-        assertThat(auth.getPrincipal())
-                .isEqualTo(new CurrentUser(id, "919876543210", EnumSet.of(Role.USER, Role.CARETAKER)));
+        var auth = supabaseJwtAuthenticationConverter.convert(jwt(userId));
+
+        assertThat(auth.isAuthenticated()).isTrue();
+        assertThat(auth.getPrincipal()).isInstanceOfSatisfying(AuthenticatedPrincipal.class, principal -> {
+            assertThat(principal.userId()).isEqualTo(userId);
+            assertThat(principal.phone()).isEqualTo("919876543210");
+            assertThat(principal.roles()).containsExactlyInAnyOrder(Role.USER, Role.CARETAKER);
+        });
         assertThat(auth.getAuthorities())
                 .extracting(GrantedAuthority::getAuthority)
                 .containsExactlyInAnyOrder("ROLE_USER", "ROLE_CARETAKER");
-        assertThat(auth.isAuthenticated()).isTrue();
     }
 
     @Test
-    void emptyRolesAreAuthenticatedWithoutAuthorities() {
-        var auth = SupabaseJwtConverter.authentication(jwt, EnumSet.noneOf(Role.class));
+    void userWithoutProfileIsAuthenticatedWithNoRoles() {
+        var auth = supabaseJwtAuthenticationConverter.convert(jwt(userId));
 
-        assertThat(((CurrentUser) auth.getPrincipal()).roles()).isEmpty();
-        assertThat(auth.getAuthorities()).isEmpty();
         assertThat(auth.isAuthenticated()).isTrue();
+        assertThat(((AuthenticatedPrincipal) auth.getPrincipal()).roles()).isEmpty();
+        assertThat(auth.getAuthorities()).isEmpty();
+    }
+
+    @Test
+    void keepsTheJwtAsCredentials() {
+        var jwt = jwt(userId);
+
+        assertThat(supabaseJwtAuthenticationConverter.convert(jwt).getCredentials()).isSameAs(jwt);
+    }
+
+    private static Jwt jwt(UUID subject) {
+        return Jwt.withTokenValue("token")
+                .header("alg", "ES256")
+                .subject(subject.toString())
+                .claim("phone", "919876543210")
+                .build();
     }
 }

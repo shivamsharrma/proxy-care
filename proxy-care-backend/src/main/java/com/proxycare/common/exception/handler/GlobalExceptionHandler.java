@@ -3,6 +3,7 @@ package com.proxycare.common.exception.handler;
 import com.proxycare.common.api.ApiError;
 import com.proxycare.common.exception.AppException;
 import com.proxycare.common.exception.ErrorCode;
+import com.proxycare.common.security.SecurityMessages;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import java.util.Map;
@@ -39,14 +40,13 @@ public class GlobalExceptionHandler {
     private static final String INVALID_REQUEST = "Invalid request";
     private static final String METHOD_NOT_SUPPORTED = "HTTP method not supported";
     private static final String UNSUPPORTED_MEDIA_TYPE = "Unsupported media type";
-    private static final String ACCESS_DENIED = "You are not allowed to do this";
     private static final String CONCURRENT_MODIFICATION = "Resource was modified by another request. Please retry.";
     private static final String CONFLICTS_WITH_EXISTING_DATA = "The requested operation conflicts with existing data";
     private static final String NOT_FOUND = "Resource not found";
     private static final String UNEXPECTED_ERROR = "An unexpected error occurred";
     private static final String UNNAMED_PARAMETER = "parameter";
 
-    private final ApiErrorFactory apiErrors;
+    private final ApiErrorFactory apiErrorFactory;
 
     @ExceptionHandler(AppException.class)
     public ResponseEntity<ApiError> handleAppException(AppException ex) {
@@ -98,7 +98,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex) {
-        return respond(ErrorCode.ACCESS_DENIED, ACCESS_DENIED);
+        return respond(ErrorCode.ACCESS_DENIED, SecurityMessages.ACCESS_DENIED);
     }
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
@@ -132,7 +132,8 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<ApiError> respond(ErrorCode errorCode, String message, Map<String, String> fieldErrors) {
-        return ResponseEntity.status(errorCode.getStatus()).body(apiErrors.create(errorCode, message, fieldErrors));
+        return ResponseEntity.status(errorCode.getStatus())
+                .body(apiErrorFactory.create(errorCode, message, fieldErrors));
     }
 
     private static void logAppException(AppException ex) {
@@ -149,7 +150,8 @@ public class GlobalExceptionHandler {
     }
 
     private static Stream<ParameterFailure> parameterFailures(ParameterValidationResult result) {
-        String parameter = Objects.requireNonNullElse(result.getMethodParameter().getParameterName(), UNNAMED_PARAMETER);
+        String parameter = Objects.requireNonNullElse(
+                result.getMethodParameter().getParameterName(), UNNAMED_PARAMETER);
         return result.getResolvableErrors().stream()
                 .map(error -> new ParameterFailure(parameter, error.getDefaultMessage()));
     }

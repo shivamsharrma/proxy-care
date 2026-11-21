@@ -1,7 +1,8 @@
 package com.proxycare.support;
 
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
-import com.proxycare.common.security.SecurityConfig;
+import com.proxycare.common.security.jwt.JwtProperties;
+import com.proxycare.common.security.jwt.SupabaseJwtDecoderFactory;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
@@ -36,20 +37,20 @@ public class TestConfig {
     }
 
     @Bean
-    TestTokens testTokens(MutableClock clock) {
-        return new TestTokens(clock);
+    TestTokens testTokens(MutableClock mutableClock) {
+        return new TestTokens(mutableClock);
     }
 
     @Bean
-    TestDb testDb(JdbcTemplate jdbc) {
-        return new TestDb(jdbc);
+    TestDb testDb(JdbcTemplate jdbcTemplate) {
+        return new TestDb(jdbcTemplate);
     }
 
     /** Trusts the TestTokens keys instead of Supabase's JWKS, through the same rules as prod. */
     @Bean
     @Primary
-    JwtDecoder testJwtDecoder(TestTokens tokens, MutableClock clock) {
-        return SecurityConfig.jwksDecoder(
-                new ImmutableJWKSet<>(tokens.publicJwkSet()), "https://test.supabase.co", clock);
+    JwtDecoder testJwtDecoder(TestTokens testTokens, JwtProperties jwtProperties, MutableClock mutableClock) {
+        return SupabaseJwtDecoderFactory.withKeys(
+                new ImmutableJWKSet<>(testTokens.publicJwkSet()), jwtProperties, mutableClock);
     }
 }

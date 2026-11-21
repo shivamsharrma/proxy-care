@@ -59,8 +59,8 @@ public class TestTokens {
 
     public final class Builder {
 
-        private final UUID id;
         private final String phone;
+        private String subject;
         private String issuer = ISSUER;
         private String audience = AUDIENCE;
         private boolean expired;
@@ -69,13 +69,19 @@ public class TestTokens {
         private String hs256Secret;
 
         private Builder(UUID id, String phone) {
-            this.id = id;
+            this.subject = id.toString();
             this.phone = phone;
         }
 
         /** Issued two hours ago, so it expired one hour ago. */
         public Builder expired() {
             expired = true;
+            return this;
+        }
+
+        /** Replaces the user id subject, e.g. with a value that is not a UUID. */
+        public Builder subject(String subject) {
+            this.subject = subject;
             return this;
         }
 
@@ -108,7 +114,7 @@ public class TestTokens {
         public String build() {
             Instant iat = expired ? clock.instant().minus(Duration.ofHours(2)) : clock.instant();
             var claims = new JWTClaimsSet.Builder()
-                    .subject(id.toString())
+                    .subject(subject)
                     .claim("phone", phone)
                     .claim("role", "authenticated")
                     .issuer(issuer)

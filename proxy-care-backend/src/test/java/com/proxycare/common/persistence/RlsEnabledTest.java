@@ -13,12 +13,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 class RlsEnabledTest extends IntegrationTest {
 
     @Autowired
-    JdbcTemplate jdbc;
+    JdbcTemplate jdbcTemplate;
 
     @Test
     void everyPublicTableHasRowLevelSecurity() {
         Map<String, Boolean> rls = new TreeMap<>();
-        jdbc.query(
+        jdbcTemplate.query(
                 """
                 select c.relname, c.relrowsecurity from pg_class c
                 join pg_namespace n on n.oid = c.relnamespace

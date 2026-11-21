@@ -4,6 +4,11 @@ spring:
   threads:
     virtual:
       enabled: true
+  # Supabase puts its own objects in public (e.g. the rls_auto_enable function), so a new project's public is
+  # never empty. Baselining at 0 creates the history table and still runs every migration from V1.
+  flyway:
+    baseline-on-migrate: true
+    baseline-version: 0
   # A dedicated backend Postgres role, never the Supabase service-role API key.
   # Use Supabase's SESSION pooler URL: it works over IPv4 (the direct connection is IPv6-only
   # without the IPv4 add-on).

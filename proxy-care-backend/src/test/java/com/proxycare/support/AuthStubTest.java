@@ -9,8 +9,8 @@ class AuthStubTest extends IntegrationTest {
 
     @Test
     void authUsersTableExistsAndAcceptsInsert() {
-        db.insertAuthUser(UUID.randomUUID());
+        testDb.insertAuthUser(UUID.randomUUID());
 
-        assertThat(db.count("auth.users")).isEqualTo(1);
+        assertThat(testDb.count("auth.users")).isEqualTo(1);
     }
 }
