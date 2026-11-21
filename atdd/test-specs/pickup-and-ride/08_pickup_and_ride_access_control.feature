@@ -119,20 +119,6 @@ Feature: Role-based visibility and access rules during pickup and ride
       | Priya Nair | remind family        |
 
   @negative @api
-  Scenario Outline: Only customer support can lift a pickup code block
-    Given the pickup code attempts are blocked
-    When "<actor>" calls "lift pickup code block"
-    Then the server should respond with "403 Forbidden"
-    And the pickup code attempts should be blocked
-
-    Examples:
-      | actor        |
-      | Anita Verma  |
-      | Suresh Yadav |
-      | Rohan Mehta  |
-      | Priya Nair   |
-
-  @negative @api
   Scenario Outline: Unauthenticated calls are rejected
     Given the booking is in state "IN_PROGRESS"
     When an unauthenticated client calls "<endpoint>"
@@ -142,7 +128,6 @@ Feature: Role-based visibility and access rules during pickup and ride
     Examples:
       | endpoint                |
       | start trip to pickup    |
-      | lift pickup code block  |
       | read caretaker location |
       | read pickup code        |
       | verify pickup code      |

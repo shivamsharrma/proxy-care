@@ -8,7 +8,10 @@ Feature: Verify OTP (Screen 03)
   # Displays: masked number, resend countdown (30 s). Input: 6-digit OTP.
   # Actions: Verify; Resend SMS; Change number.
   # States: verifying, wrong code, expired, resend locked.
-  # Routing: new USER -> 04, new CARETAKER -> C1, existing account -> home (B1 / P1).
+  # Routing: the app decides the role. User app: no USER role yet -> 04, onboarded -> B1.
+  #          Caretaker app: no CARETAKER role yet -> C1, approved -> P1.
+  # DECISION: one mobile number can hold both roles. Signing up in the other app adds that
+  #           role to the same account; it never blocks the number.
   # ASSUMPTION: attempt and resend limits come from server config; copy is placeholder.
 
   Background:
@@ -61,8 +64,8 @@ Feature: Verify OTP (Screen 03)
     Then OTP cell 1 should stay empty
 
   @smoke @happy-path
-  Scenario Outline: New account is routed to the first onboarding screen for its role
-    Given I chose the role "<role>" on the Welcome screen
+  Scenario Outline: New account is routed to the first onboarding screen for the app's role
+    Given I am signing up in the <app>
     And no account exists for "9876543210"
     When I enter the correct OTP
     And I tap "Verify"
@@ -71,13 +74,13 @@ Feature: Verify OTP (Screen 03)
     And I should see the "<next_screen>" screen
 
     Examples:
-      | role                       | next_screen   |
-      | I'm booking for my family  | User profile  |
-      | I'm a caretaker            | KYC checklist |
+      | app           | next_screen   |
+      | User app      | User profile  |
+      | Caretaker app | KYC checklist |
 
   @happy-path
   Scenario Outline: Existing account goes straight to home
-    Given I chose the role "<role>" on the Welcome screen
+    Given I am signing up in the <app>
     And a fully onboarded "<role_enum>" account exists for "9876543210"
     When I enter the correct OTP
     And I tap "Verify"
@@ -85,13 +88,28 @@ Feature: Verify OTP (Screen 03)
     And I should not see any onboarding screen
 
     Examples:
-      | role                       | role_enum | home           |
-      | I'm booking for my family  | USER      | Home (B1)      |
-      | I'm a caretaker            | CARETAKER | Home (P1)      |
+      | app           | role_enum | home           |
+      | User app      | USER      | Home (B1)      |
+      | Caretaker app | CARETAKER | Home (P1)      |
+
+  @happy-path @multi-role
+  Scenario Outline: An account with only the other role starts onboarding for this app's role
+    Given I am signing up in the <app>
+    And a fully onboarded "<other_role>" account exists for "9876543210"
+    When I enter the correct OTP
+    And I tap "Verify"
+    Then I should see the "<next_screen>" screen
+    And the account for "9876543210" should have the roles "USER" and "CARETAKER"
+    And the existing "<other_role>" data should be unchanged
+
+    Examples:
+      | app           | other_role | next_screen   |
+      | User app      | CARETAKER  | User profile  |
+      | Caretaker app | USER       | KYC checklist |
 
   @happy-path
   Scenario: Existing caretaker with unfinished KYC resumes at the checklist
-    Given I chose the role "I'm a caretaker" on the Welcome screen
+    Given I am signing up in the Caretaker app
     And a caretaker account exists for "9876543210" with KYC status "IN_PROGRESS"
     When I enter the correct OTP
     And I tap "Verify"
@@ -100,7 +118,7 @@ Feature: Verify OTP (Screen 03)
 
   @happy-path
   Scenario: Existing user with no family member resumes at Add family member
-    Given I chose the role "I'm booking for my family" on the Welcome screen
+    Given I am signing up in the User app
     And a user account exists for "9876543210" with a saved profile and no family members
     When I enter the correct OTP
     And I tap "Verify"
@@ -187,7 +205,7 @@ Feature: Verify OTP (Screen 03)
 
   @navigation
   Scenario: Back after successful verification does not return to the OTP screen
-    Given I chose the role "I'm booking for my family" on the Welcome screen
+    Given I am signing up in the User app
     And I have verified the correct OTP
     And I am on the "User profile" screen
     When I press the back button

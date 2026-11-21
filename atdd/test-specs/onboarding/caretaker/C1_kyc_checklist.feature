@@ -12,7 +12,7 @@ Feature: Caretaker KYC checklist (Screen C1)
   # KYC status: IN_PROGRESS (step n of 4) -> SUBMITTED (video KYC scheduled) -> APPROVED / REJECTED.
 
   Background:
-    Given I chose the role "I'm a caretaker"
+    Given I am signing up in the Caretaker app
     And I have verified the mobile number "9988776655"
 
   @smoke @happy-path

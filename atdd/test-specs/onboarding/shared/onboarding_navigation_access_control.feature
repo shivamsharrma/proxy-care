@@ -7,28 +7,34 @@ Feature: Onboarding navigation, routing and access control
   # Covers cross-screen rules for 01-06 (User) and C1, C2, C4, C5, C6 (Caretaker).
   # MVP RULE: C3 Aadhaar & PAN is not integrated. C2 -> C4 directly. No route, deep link or
   #           checklist entry may open C3.
-  # ASSUMPTION: one mobile number maps to one role; copy is placeholder.
+  # DECISION: two apps, the User app and the Caretaker app; the app decides the role.
+  # DECISION: one mobile number can hold both roles (USER and CARETAKER) on one account.
+  # ASSUMPTION: copy is placeholder.
 
   @smoke
   Scenario Outline: Cold start routes the person by session and onboarding progress
-    Given the device has "<session>"
-    When I launch the app
+    Given the device has "<session>" in the <app>
+    When I launch the <app>
     Then I should see the "<screen>" screen
 
-    Examples:
-      | session                                                    | screen              |
-      | no session                                                 | Welcome             |
-      | a User session with no profile                             | User profile        |
-      | a User session with a profile and no family members        | Add family member   |
-      | a User session with a profile and at least one family member | Home (B1)         |
-      | a Caretaker session with KYC IN_PROGRESS                   | KYC checklist       |
-      | a Caretaker session with KYC SUBMITTED                     | Under review        |
-      | a Caretaker session with KYC APPROVED                      | Home (P1)           |
-      | a Caretaker session with KYC REJECTED                      | Under review        |
+    Examples: User app
+      | app           | session                                                      | screen            |
+      | User app      | no session                                                   | Welcome           |
+      | User app      | a session with no profile                                    | User profile      |
+      | User app      | a session with a profile and no family members               | Add family member |
+      | User app      | a session with a profile and at least one family member      | Home (B1)         |
+
+    Examples: Caretaker app
+      | app           | session                                                      | screen            |
+      | Caretaker app | no session                                                   | Welcome           |
+      | Caretaker app | a session with KYC IN_PROGRESS                               | KYC checklist     |
+      | Caretaker app | a session with KYC SUBMITTED                                 | Under review      |
+      | Caretaker app | a session with KYC APPROVED                                  | Home (P1)         |
+      | Caretaker app | a session with KYC REJECTED                                  | Under review      |
 
   @mvp-scope
   Scenario: The full MVP caretaker onboarding path skips Aadhaar & PAN
-    Given I chose the role "I'm a caretaker"
+    Given I am signing up in the Caretaker app
     When I verify my mobile number with the correct OTP
     Then I should see the "KYC checklist" screen
     When I complete "Basic information" and tap "Save and continue"
@@ -48,7 +54,7 @@ Feature: Onboarding navigation, routing and access control
 
   @smoke
   Scenario: The full User onboarding path
-    Given I chose the role "I'm booking for my family"
+    Given I am signing up in the User app
     When I verify my mobile number with the correct OTP
     Then I should see the "User profile" screen
     When I complete my profile and tap "Continue"
@@ -84,21 +90,21 @@ Feature: Onboarding navigation, routing and access control
     Then the online/offline toggle should be disabled
     And I should see a note that I can go online after approval
 
-  @access-control
-  Scenario: A mobile number registered as a Caretaker cannot sign up as a User
-    Given the number "9988776655" belongs to a caretaker account
-    And I chose the role "I'm booking for my family"
+  @access-control @multi-role
+  Scenario: A caretaker's mobile number can also sign up in the User app
+    Given the number "9988776655" belongs to a caretaker account with KYC "APPROVED"
+    And I am signing up in the User app
     When I enter the mobile number "9988776655" and verify the correct OTP
-    Then I should see the message "This number is registered as a caretaker"
-    And I should not see the "User profile" screen
+    Then I should see the "User profile" screen
+    And the caretaker's KYC status should still be "APPROVED"
 
-  @access-control
-  Scenario: A mobile number registered as a User cannot sign up as a Caretaker
-    Given the number "9876543210" belongs to a user account
-    And I chose the role "I'm a caretaker"
+  @access-control @multi-role
+  Scenario: A user's mobile number can also sign up in the Caretaker app
+    Given the number "9876543210" belongs to a user account with at least one family member
+    And I am signing up in the Caretaker app
     When I enter the mobile number "9876543210" and verify the correct OTP
-    Then I should see the message "This number is registered as a family account"
-    And I should not see the "KYC checklist" screen
+    Then I should see the "KYC checklist" screen
+    And the user's family members should be unchanged
 
   @access-control
   Scenario: Caretaker screens are not reachable from the User app

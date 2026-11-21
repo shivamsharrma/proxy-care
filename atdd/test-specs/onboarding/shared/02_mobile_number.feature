@@ -11,8 +11,8 @@ Feature: Mobile number entry (Screen 02)
   # ASSUMPTION: error copy below is placeholder text; replace with final UX copy.
 
   Background:
-    Given I am on the "Welcome" screen
-    And I have chosen the role "I'm booking for my family"
+    Given I am on the "Welcome" screen of the User app
+    And I have tapped "Get started"
     And I am on the "Mobile number" screen
 
   @smoke @happy-path
@@ -121,8 +121,8 @@ Feature: Mobile number entry (Screen 02)
     And the language should still be "हिन्दी"
 
   @navigation
-  Scenario: The same screen is used for the Caretaker role
-    Given I go back to the "Welcome" screen
-    When I choose the role "I'm a caretaker"
+  Scenario: The Caretaker app uses the same Mobile number screen
+    Given I am on the "Welcome" screen of the Caretaker app
+    When I tap "Get started"
     Then I should see the "Mobile number" screen
     And the screen should have the same fields and "Send OTP" action

@@ -11,7 +11,7 @@ Feature: User profile - Stage A (Screen 04)
   # ASSUMPTION: error copy is placeholder.
 
   Background:
-    Given I chose the role "I'm booking for my family"
+    Given I am signing up in the User app
     And I have verified the mobile number "9876543210"
     And I am on the "User profile" screen
 
