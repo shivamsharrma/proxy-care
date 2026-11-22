@@ -94,73 +94,73 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[Locale('en')];
 
-  /// Shown when the app cannot reach the server (NETWORK_ERROR).
+  /// Shown when the app cannot reach the server (no connection).
   ///
   /// In en, this message translates to:
   /// **'Unable to connect. Please check your internet connection.'**
   String get errorNetwork;
 
-  /// Shown when a request timed out (TIMEOUT).
+  /// Shown when a request timed out (client timeout, HTTP 408 / 504).
   ///
   /// In en, this message translates to:
   /// **'The request took too long. Please try again.'**
   String get errorTimeout;
 
-  /// Shown when the session is missing or expired (UNAUTHENTICATED).
+  /// Shown when the session is missing or expired (HTTP 401, UNAUTHENTICATED).
   ///
   /// In en, this message translates to:
   /// **'Your session has expired. Please sign in again.'**
   String get errorUnauthenticated;
 
-  /// Shown when the user may not perform the action (FORBIDDEN).
+  /// Shown when the user may not perform the action (HTTP 403, ACCESS_DENIED).
   ///
   /// In en, this message translates to:
   /// **'You don\'t have permission to perform this action.'**
   String get errorForbidden;
 
-  /// Shown when the requested resource does not exist (NOT_FOUND).
+  /// Shown when the requested resource does not exist (HTTP 404, RESOURCE_NOT_FOUND / PROFILE_NOT_FOUND).
   ///
   /// In en, this message translates to:
   /// **'The requested information could not be found.'**
   String get errorNotFound;
 
-  /// Shown when the backend rejected the entered data (VALIDATION_ERROR). Also used next to a field the backend rejected.
+  /// Shown when the backend rejected the entered data (HTTP 400: VALIDATION_FAILED; MALFORMED_REQUEST for an unreadable body or a missing or mistyped parameter; INVALID_PARAMETER for an unsupported HTTP method). Also used next to a field the backend rejected.
   ///
   /// In en, this message translates to:
   /// **'Please check the entered information.'**
   String get errorValidation;
 
-  /// Shown when the data changed on the server meanwhile (CONFLICT).
+  /// Shown when the data changed on the server meanwhile (HTTP 409, CONCURRENT_MODIFICATION / RESOURCE_ALREADY_EXISTS).
   ///
   /// In en, this message translates to:
   /// **'This information has changed. Please refresh and try again.'**
   String get errorConflict;
 
-  /// Shown when a business rule prevents the action (BUSINESS_RULE_VIOLATION).
+  /// Shown when a business rule prevents the action (any HTTP 422, e.g. BUSINESS_RULE_VIOLATION).
   ///
   /// In en, this message translates to:
   /// **'This action cannot be completed at the moment.'**
   String get errorBusinessRule;
 
-  /// Shown when the backend is rate limiting the user (RATE_LIMITED).
+  /// Shown when the backend is rate limiting the user (HTTP 429; not sent by the backend today).
   ///
   /// In en, this message translates to:
   /// **'Too many requests. Please try again later.'**
   String get errorRateLimited;
 
-  /// Shown for server failures (SERVER_ERROR / INTERNAL_ERROR).
+  /// Shown for server failures (INTERNAL_ERROR, EXTERNAL_SERVICE_ERROR, other 5xx).
   ///
   /// In en, this message translates to:
   /// **'Something went wrong on our end. Please try again later.'**
   String get errorServer;
 
-  /// Shown when the service is down or overloaded (SERVICE_UNAVAILABLE).
+  /// Shown when the service is down or overloaded (HTTP 503, EXTERNAL_SERVICE_UNAVAILABLE).
   ///
   /// In en, this message translates to:
   /// **'The service is temporarily unavailable. Please try again.'**
   String get errorServiceUnavailable;
 
-  /// Shown for any error that has no more specific message (UNKNOWN_ERROR).
+  /// Shown for any error that has no more specific message.
   ///
   /// In en, this message translates to:
   /// **'Something went wrong. Please try again.'**

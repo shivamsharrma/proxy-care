@@ -10,8 +10,8 @@ import '../../core/error/failure.dart';
 /// switch (result) {
 ///   case Success(:final value):
 ///     // use value
-///   case Failure(failure: ValidationFailure(:final fieldErrors)):
-///     // show field errors
+///   case Failure(failure: ValidationFailure(:final invalidFields)):
+///     // mark invalidFields with localized copy
 ///   case Failure(:final failure):
 ///     // show a generic state for failure
 /// }

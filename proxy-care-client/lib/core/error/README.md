@@ -7,10 +7,12 @@ Centralized error handling. See ARCHITECTURE.md, "Errors".
 - `failure.dart`: sealed application failures (`AppFailure`) and the
   `DomainFailure` base for business rules. Pure Dart; the domain uses it.
 - `failure_mapper.dart`: `AppException.toFailure()`.
-- `error_mapper.dart`: `ErrorMapper` (Dio, HTTP status, RFC 9457 problem
-  details, `Retry-After`, serialization, unknown), `BackendError`,
-  `BackendErrorParser` and `parseRetryAfter`.
-- `backend_error_code.dart`: the backend error codes (ADR 0012).
+- `error_mapper.dart`: `ErrorMapper` (Dio, HTTP status, backend `ApiError`,
+  `Retry-After`, serialization, unknown), `ErrorBodyParser` and
+  `parseRetryAfter`.
+- `backend_error_parser.dart`: `BackendError` and `BackendErrorParser`,
+  which reads the backend's `ApiError` body.
+- `backend_error_code.dart`: the backend's `ErrorCode` names.
 - `user_error_kind.dart`: which user-facing message a failure shows (text in
   `core/l10n`).
 - `crash_reporter.dart`: vendor-independent `CrashReporter`, privacy-safe

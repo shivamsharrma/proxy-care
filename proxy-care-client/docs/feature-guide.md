@@ -268,8 +268,8 @@ element has a semantic label and the 48 px minimum target
 Mirror the folders under `test/features/<feature>/` ([TESTING.md](../TESTING.md)):
 
 - mappers and use cases: plain unit tests;
-- data source: `FakeHttpAdapter` responses, including problem details
-  (`respondProblem`);
+- data source: `FakeHttpAdapter` responses, including backend errors
+  (`respondApiError`);
 - repository: success and every failure path (`isFailureOf<…>()`);
 - controller: `createTestContainer` with a fake repository
   (`test/features/<feature>/fakes.dart`);

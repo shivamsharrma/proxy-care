@@ -3,51 +3,51 @@
 
   "errorNetwork": "Unable to connect. Please check your internet connection.",
   "@errorNetwork": {
-    "description": "Shown when the app cannot reach the server (NETWORK_ERROR)."
+    "description": "Shown when the app cannot reach the server (no connection)."
   },
   "errorTimeout": "The request took too long. Please try again.",
   "@errorTimeout": {
-    "description": "Shown when a request timed out (TIMEOUT)."
+    "description": "Shown when a request timed out (client timeout, HTTP 408 / 504)."
   },
   "errorUnauthenticated": "Your session has expired. Please sign in again.",
   "@errorUnauthenticated": {
-    "description": "Shown when the session is missing or expired (UNAUTHENTICATED)."
+    "description": "Shown when the session is missing or expired (HTTP 401, UNAUTHENTICATED)."
   },
   "errorForbidden": "You don't have permission to perform this action.",
   "@errorForbidden": {
-    "description": "Shown when the user may not perform the action (FORBIDDEN)."
+    "description": "Shown when the user may not perform the action (HTTP 403, ACCESS_DENIED)."
   },
   "errorNotFound": "The requested information could not be found.",
   "@errorNotFound": {
-    "description": "Shown when the requested resource does not exist (NOT_FOUND)."
+    "description": "Shown when the requested resource does not exist (HTTP 404, RESOURCE_NOT_FOUND / PROFILE_NOT_FOUND)."
   },
   "errorValidation": "Please check the entered information.",
   "@errorValidation": {
-    "description": "Shown when the backend rejected the entered data (VALIDATION_ERROR). Also used next to a field the backend rejected."
+    "description": "Shown when the backend rejected the entered data (HTTP 400: VALIDATION_FAILED; MALFORMED_REQUEST for an unreadable body or a missing or mistyped parameter; INVALID_PARAMETER for an unsupported HTTP method). Also used next to a field the backend rejected."
   },
   "errorConflict": "This information has changed. Please refresh and try again.",
   "@errorConflict": {
-    "description": "Shown when the data changed on the server meanwhile (CONFLICT)."
+    "description": "Shown when the data changed on the server meanwhile (HTTP 409, CONCURRENT_MODIFICATION / RESOURCE_ALREADY_EXISTS)."
   },
   "errorBusinessRule": "This action cannot be completed at the moment.",
   "@errorBusinessRule": {
-    "description": "Shown when a business rule prevents the action (BUSINESS_RULE_VIOLATION)."
+    "description": "Shown when a business rule prevents the action (any HTTP 422, e.g. BUSINESS_RULE_VIOLATION)."
   },
   "errorRateLimited": "Too many requests. Please try again later.",
   "@errorRateLimited": {
-    "description": "Shown when the backend is rate limiting the user (RATE_LIMITED)."
+    "description": "Shown when the backend is rate limiting the user (HTTP 429; not sent by the backend today)."
   },
   "errorServer": "Something went wrong on our end. Please try again later.",
   "@errorServer": {
-    "description": "Shown for server failures (SERVER_ERROR / INTERNAL_ERROR)."
+    "description": "Shown for server failures (INTERNAL_ERROR, EXTERNAL_SERVICE_ERROR, other 5xx)."
   },
   "errorServiceUnavailable": "The service is temporarily unavailable. Please try again.",
   "@errorServiceUnavailable": {
-    "description": "Shown when the service is down or overloaded (SERVICE_UNAVAILABLE)."
+    "description": "Shown when the service is down or overloaded (HTTP 503, EXTERNAL_SERVICE_UNAVAILABLE)."
   },
   "errorUnknown": "Something went wrong. Please try again.",
   "@errorUnknown": {
-    "description": "Shown for any error that has no more specific message (UNKNOWN_ERROR)."
+    "description": "Shown for any error that has no more specific message."
   },
 
   "a11yBack": "Back",

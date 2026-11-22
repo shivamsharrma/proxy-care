@@ -76,7 +76,7 @@ final class DioFactory {
     sendTimeout: NetworkConfig.sendTimeout,
     contentType: Headers.jsonContentType,
     responseType: ResponseType.json,
-    headers: {ApiHeaders.accept: ApiHeaders.acceptJson},
+    headers: {ApiHeaders.accept: ApiHeaders.json},
   );
 
   /// Creates a configured [Dio].

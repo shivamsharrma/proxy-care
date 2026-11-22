@@ -325,7 +325,7 @@ Three kinds of error, each with its own type and its own layer:
 
 | Kind | Type | Produced by | Seen by |
 | --- | --- | --- | --- |
-| Infrastructure exception | `AppException` (sealed): `NetworkException`, `UnauthorizedException`, `ForbiddenException`, `NotFoundException`, `ValidationException` (field errors), `ServerException` (incl. `invalidResponse`), `TimeoutException`, `CancelledException`, `UnknownException` | `ErrorMapper` from Dio errors, HTTP statuses, the backend's problem details and serialization errors | Core and data only |
+| Infrastructure exception | `AppException` (sealed): `NetworkException`, `UnauthorizedException`, `ForbiddenException`, `NotFoundException`, `ValidationException` (field errors), `ServerException` (incl. `invalidResponse`), `TimeoutException`, `CancelledException`, `UnknownException` | `ErrorMapper` from Dio errors, HTTP statuses, the backend's `ApiError` bodies and serialization errors | Core and data only |
 | Application failure | `AppFailure` (sealed): `NetworkFailure` (incl. timeouts), `UnauthorizedFailure`, `ForbiddenFailure`, `NotFoundFailure`, `ValidationFailure`, `ConflictFailure`, `BusinessRuleFailure`, `RateLimitedFailure`, `ServiceUnavailableFailure`, `ServerFailure`, `CancelledFailure`, `UnexpectedFailure` | Repositories, from an `AppException` (`toFailure()`) | Domain and presentation |
 | Domain failure | subclasses of `DomainFailure` (an `AppFailure`) | Features, for business rules | Domain and presentation |
 
@@ -382,68 +382,69 @@ Future<Result<Profile>> getProfile() => guardResult(
 
 ### Backend errors
 
-Every error is an RFC 9457 problem details body, sent as
-`application/problem+json` (backend ADR 0012):
+Every error is the backend's `ApiError` body
+(`com.proxycare.common.api.ApiError`, codes in
+`com.proxycare.common.exception.ErrorCode`), sent as `application/json`
+with null members omitted:
 
 ```json
 {
-  "type": "urn:proxycare:problem:validation-error",
-  "title": "Validation failed",
-  "status": 422,
-  "detail": "The request contains invalid values.",
-  "instance": "/api/v1/patients",
-  "code": "VALIDATION_ERROR",
-  "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
-  "timestamp": "2026-11-18T09:30:00Z",
-  "errors": [{ "field": "age", "code": "Max", "message": "must be less than or equal to 120" }]
+  "code": "VALIDATION_FAILED",
+  "message": "Validation failed",
+  "fieldErrors": { "age": "must be less than or equal to 120" },
+  "meta": { "traceId": "4bf92f3577b34da6a3ce929d0e0e4736", "timestamp": "2026-11-22T09:30:00Z" }
 }
 ```
 
-`BackendError.parse` reads `code`, `detail` (else `title`; logs only),
-`errors` and `traceId` (plain `application/json` and JSON text are read
-too). `errors` becomes `fieldErrors` (`field` → messages; an object-level
-error, with an empty `field`, is under `''`). `traceId` is kept as
-`AppException.traceId`, for logs and support. An endpoint with a different
-structure passes its own `BackendErrorParser` to `ErrorMapper` (or to one
-`fromResponse` call); the default is never guessed per response. The
-standard codes are `BackendErrorCode`, the ADR 0012 table
-(`MALFORMED_REQUEST`, `UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`,
-`METHOD_NOT_ALLOWED`, `NOT_ACCEPTABLE`, `CONFLICT`, `PRECONDITION_FAILED`,
-`PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `VALIDATION_ERROR`,
-`BUSINESS_RULE_VIOLATION`, `PRECONDITION_REQUIRED`, `RATE_LIMITED`,
-`INTERNAL_ERROR`, `UPSTREAM_ERROR`, `SERVICE_UNAVAILABLE`,
-`UPSTREAM_TIMEOUT`); a missing or unknown code is kept as a raw string and
-the HTTP status classifies the error.
+`BackendErrorParser.parse` reads `code`, `message` (parsed only),
+`fieldErrors` (field → one message, `Map<String, String>`) and
+`meta.traceId`; JSON text is read too, and it never throws (an unrelated
+body gives an empty `BackendError`, a malformed member is skipped).
+`traceId` is kept as `AppException.traceId`, for logs and support. An
+endpoint with a different structure passes its own `ErrorBodyParser` to
+`ErrorMapper` (or to one `fromResponse` call); the default is never guessed
+per response. The codes are `BackendErrorCode`, named exactly as the
+backend's `ErrorCode` (`VALIDATION_FAILED`, `MALFORMED_REQUEST`,
+`INVALID_PARAMETER`, `UNAUTHENTICATED`, `ACCESS_DENIED`,
+`RESOURCE_NOT_FOUND`, `PROFILE_NOT_FOUND`, `RESOURCE_ALREADY_EXISTS`,
+`CONCURRENT_MODIFICATION`, `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`,
+`BUSINESS_RULE_VIOLATION`, `INTERNAL_ERROR`, `EXTERNAL_SERVICE_ERROR`,
+`EXTERNAL_SERVICE_UNAVAILABLE`); a missing or unknown code is kept as a raw
+string and the HTTP status classifies the error.
 
 The HTTP status is authoritative; the code only refines what the status
-leaves open. Error handling never depends on `title`, `detail` or the field
-messages, and none of them is shown to users. A 429 or 503 keeps its
-`Retry-After` (seconds) as `ServerException.retryAfter`, then
-`RateLimitedFailure.retryAfter` / `ServiceUnavailableFailure.retryAfter`.
+leaves open. Error handling never depends on `message` or the field
+messages: the server's `message` is never put on the exception (its
+`message` is the type's fixed default), never shown and never logged. The
+backend sends no `ETag`, reads no `If-Match`, sends no `Retry-After` and
+never sends 412, 428 or 429; a version clash is 409
+`CONCURRENT_MODIFICATION`. The client's handling of those statuses and
+headers is kept but not enforced by the backend today.
 
 | Status | Exception → failure |
 | --- | --- |
 | any 4xx with field errors | `ValidationException` → `ValidationFailure` |
-| 400, 422 | `ValidationException`, unless the code is `BUSINESS_RULE_VIOLATION` → `BusinessRuleFailure` |
+| 400 | `ValidationException` → `ValidationFailure` |
+| 422 (any code) | `ServerException` → `BusinessRuleFailure` |
 | 401 | `UnauthorizedException` → `UnauthorizedFailure` |
 | 403 | `ForbiddenException` → `ForbiddenFailure` |
 | 404, 410 | `NotFoundException` → `NotFoundFailure` |
 | 408, 504 | `TimeoutException` → `NetworkFailure(isTimeout: true)` |
-| 409, 412 | `ServerException` → `ConflictFailure` (reload, then retry with the new `ETag`) |
-| 428 | `ServerException` → `ServerFailure` (the client did not send `If-Match`: a bug) |
-| 429 | `ServerException` → `RateLimitedFailure` |
+| 409, 412 | `ServerException` → `ConflictFailure` (reload, then retry; the backend sends only 409) |
+| 428 | `ServerException` → `ServerFailure` (not sent by the backend today) |
+| 429 | `ServerException` → `RateLimitedFailure` (not sent by the backend today) |
 | 503 | `ServerException` → `ServiceUnavailableFailure` |
-| other 4xx | `ServerException` → by code (`BUSINESS_RULE_VIOLATION`, `CONFLICT`, `PRECONDITION_FAILED`, `RATE_LIMITED`), else `ServerFailure` |
-| other 5xx | `ServerException` → `ServerFailure` (`ServiceUnavailableFailure` if the code says so) |
+| other 4xx | `ServerException` → `ServerFailure` (`ServiceUnavailableFailure` for `EXTERNAL_SERVICE_UNAVAILABLE`) |
+| other 5xx | `ServerException` → `ServerFailure` (`ServiceUnavailableFailure` for `EXTERNAL_SERVICE_UNAVAILABLE`) |
 
 ### Presentation: user-facing messages
 
 All user-facing text lives in ARB files (`lib/core/l10n/arb/`, English for
 now). `UserErrorKind.of(failure)` (pure Dart) picks the message category;
 `AppLocalizations.failureMessage(failure)` returns its localized text, and
-`fieldErrorMessage(failure, field)` the text for a rejected form field (the
-localized validation message by default; the backend's field text only when
-a screen opts in, since it is not localized). Screens never show
+`fieldErrorMessage(failure, field)` the localized validation message for a
+rejected form field (`ValidationFailure.invalidFields` carries field names
+only, never the backend's field text). Screens never show
 `AppFailure.message`, backend messages, exception text or stack traces. A
 cancelled operation has no message. Feature `DomainFailure`s show the
 business-rule message unless the feature adds its own string.
@@ -523,7 +524,7 @@ path with or without a leading `/` lands under `/api/v1`; an absolute URL
 (another origin) ignores the base. It also sets timeouts of 10 s (connect),
 30 s (receive) and 30 s (send; only for requests with a body, because on
 web Dio warns about a send timeout without one), JSON content type and
-`Accept: application/json, application/problem+json`. `PublicEndpoints`
+`Accept: application/json`. `PublicEndpoints`
 match the full path, including `/api/v1`.
 
 ### Interceptor order
@@ -551,19 +552,17 @@ GET only, by default: connection errors, connection timeouts and HTTP 502,
 0.5 s / 1 s / 2 s apart. On a 429 or 503, `Retry-After` (seconds) is
 honoured: the wait is at least that long; one longer than
 `NetworkConfig.maxRetryAfter` (10 s) is not waited out, and the error
-reaches the caller with its `retryAfter`. Never: cancelled requests, other
+reaches the caller with its `retryAfter`. The backend sends no 429 and no
+`Retry-After` today. Never: cancelled requests, other
 methods (unless the request passes `RetryPolicy.always`, for example with
 an idempotency key), or `RetryPolicy.never`.
 
 ### Responses
 
-A 2xx is a success. `ResponseParser` reads `{"data": …}` (a resource) or
-`{"data": […], "page": {"nextCursor", "hasMore", "size"}}` (a collection),
-hands `data` to the typed decoder and returns `page` as
-`ApiResponse.page`; `ResponseFormat.raw` hands the whole body instead, for
-endpoints without that shape. Empty bodies (204) decode as `null`; a body
-without `data` or with a malformed `page` is
-`ServerException.invalidResponse`. `ApiResponse.headers` keeps the response
+A 2xx is a success. The backend sends bare JSON (no envelope), and
+`ResponseParser` hands the whole body to the typed decoder (JSON text is
+decoded first). Empty bodies (204) decode as `null`; a body the decoder
+cannot read is `ServerException.invalidResponse`. `ApiResponse.headers` keeps the response
 headers (lower-case names), with `etag` and `location` getters. Non-2xx
 responses are mapped by `ErrorMapper` (see [Errors](#errors)).
 
@@ -573,10 +572,14 @@ responses are mapped by `ErrorMapper` (see [Errors](#errors)).
 `RequestCancellation`, `RetryPolicy`, an idempotency key (sent as
 `Idempotency-Key`; generate with `IdempotencyKey.generate()`) and
 `ifMatch` (sent as `If-Match`: the stored `ApiResponse.etag` of the
-version being updated; versioned resources answer 428 without it and 412
-when it is stale) and `skipAuth` (sign-in and token-refresh calls).
-Pagination uses `PageRequest` (`?cursor=…&size=…`, size 20 by default,
-1–100) and `CursorPage.fromResponse` (`page.nextCursor`, `page.hasMore`).
+version being updated) and `skipAuth` (sign-in and token-refresh calls).
+`Idempotency-Key` and `If-Match` are not enforced by the backend today: it
+has no idempotency filter, sends no `ETag` and reports a version clash as
+409 `CONCURRENT_MODIFICATION`.
+Pagination is by page number, as the backend's Spring `Pageable`:
+`PageRequest` (`?page=…&size=…`, 0-based, size 20 by default, 1–100) and
+`pageDecoder`, which reads `PageResponse{items, page, size, totalElements,
+totalPages}` (`hasNext`; `PageRequest.next` asks for the following page).
 
 ### Logging and privacy
 

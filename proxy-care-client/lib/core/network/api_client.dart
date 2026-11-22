@@ -9,12 +9,12 @@ import 'transfer.dart';
 ///   `<API_BASE_URL>/api/v1` (`NetworkConfig.apiRoot`); never repeat the
 ///   prefix in [path];
 /// * returns the typed payload in an [ApiResponse], decoded by [decode]
-///   from the body's `data` (a collection's `page` is on
-///   [ApiResponse.page]) or, with [ResponseFormat.raw], from the whole
-///   body; response headers such as `ETag` are on the [ApiResponse];
+///   from the whole (bare JSON) body; a paginated collection uses
+///   `pageDecoder`; response headers such as `ETag` are on the
+///   [ApiResponse];
 /// * throws only `AppException`s (never Dio types): network errors and
-///   problem details (RFC 9457) are mapped by `ErrorMapper`, unexpected
-///   shapes become `ServerException.invalidResponse`.
+///   the backend's `ApiError` bodies are mapped by `ErrorMapper`,
+///   unexpected shapes become `ServerException.invalidResponse`.
 ///
 /// Repositories call it inside `guardResult`, which turns those exceptions
 /// into `AppFailure`s. Domain and presentation never see it.
@@ -24,7 +24,6 @@ abstract interface class ApiClient {
     String path, {
     required JsonDecoder<T> decode,
     Map<String, Object?>? query,
-    ResponseFormat format = ResponseFormat.envelope,
     ApiRequestOptions options = const ApiRequestOptions(),
   });
 
@@ -34,7 +33,6 @@ abstract interface class ApiClient {
     required JsonDecoder<T> decode,
     Object? body,
     Map<String, Object?>? query,
-    ResponseFormat format = ResponseFormat.envelope,
     ApiRequestOptions options = const ApiRequestOptions(),
   });
 
@@ -44,7 +42,6 @@ abstract interface class ApiClient {
     required JsonDecoder<T> decode,
     Object? body,
     Map<String, Object?>? query,
-    ResponseFormat format = ResponseFormat.envelope,
     ApiRequestOptions options = const ApiRequestOptions(),
   });
 
@@ -54,7 +51,6 @@ abstract interface class ApiClient {
     required JsonDecoder<T> decode,
     Object? body,
     Map<String, Object?>? query,
-    ResponseFormat format = ResponseFormat.envelope,
     ApiRequestOptions options = const ApiRequestOptions(),
   });
 
@@ -64,7 +60,6 @@ abstract interface class ApiClient {
     required JsonDecoder<T> decode,
     Object? body,
     Map<String, Object?>? query,
-    ResponseFormat format = ResponseFormat.envelope,
     ApiRequestOptions options = const ApiRequestOptions(),
   });
 
@@ -75,7 +70,6 @@ abstract interface class ApiClient {
     required JsonDecoder<T> decode,
     Map<String, String> fields = const {},
     String method = 'POST',
-    ResponseFormat format = ResponseFormat.envelope,
     ApiRequestOptions options = const ApiRequestOptions(),
     TransferProgress? onProgress,
   });
@@ -90,5 +84,5 @@ abstract interface class ApiClient {
 }
 
 /// Decoder for responses whose payload is ignored (for example 204 No
-/// Content, or `"data": null`).
+/// Content).
 void ignoreBody(Object? json) {}
