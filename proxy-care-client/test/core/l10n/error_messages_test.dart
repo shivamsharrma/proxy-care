@@ -110,20 +110,11 @@ void main() {
   group('field errors', () {
     const failure = ValidationFailure(
       'Request validation failed',
-      fieldErrors: {
-        'email': ['Invalid email address'],
-      },
+      invalidFields: {'email'},
     );
 
-    test('a rejected field shows the localized message by default', () {
+    test('a rejected field shows the localized message', () {
       expect(l10n.fieldErrorMessage(failure, 'email'), l10n.errorValidation);
-    });
-
-    test('backend field text is shown only when asked for', () {
-      expect(
-        l10n.fieldErrorMessage(failure, 'email', backendText: true),
-        'Invalid email address',
-      );
     });
 
     test('other fields and other failures show nothing', () {

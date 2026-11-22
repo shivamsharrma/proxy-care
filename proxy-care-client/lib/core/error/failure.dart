@@ -81,22 +81,24 @@ final class NotFoundFailure extends AppFailure {
   const NotFoundFailure(super.message, {super.code, super.cause});
 }
 
-/// The input was rejected. [fieldErrors] maps field names to messages so
-/// forms can show them next to the right field.
+/// The input was rejected (HTTP 400, or a 4xx with field errors).
+/// [invalidFields] holds only the rejected field names: forms mark those
+/// fields and show localized copy. The server's messages never reach it.
 final class ValidationFailure extends AppFailure {
   /// Creates a validation failure.
   const ValidationFailure(
     super.message, {
-    this.fieldErrors = const {},
+    this.invalidFields = const {},
     super.code,
     super.cause,
   });
 
-  /// Messages per field; empty when the error is about the whole request.
-  final Map<String, List<String>> fieldErrors;
+  /// Names of the rejected fields; empty when the error is about the
+  /// whole request.
+  final Set<String> invalidFields;
 
-  /// Messages for [field], or an empty list.
-  List<String> errorsFor(String field) => fieldErrors[field] ?? const [];
+  /// Whether the backend rejected [field].
+  bool hasErrorFor(String field) => invalidFields.contains(field);
 }
 
 /// The server failed or answered in a way the app could not use.
@@ -117,9 +119,10 @@ final class ServerFailure extends AppFailure {
   bool get isRetryable => statusCode != null && statusCode! >= 500;
 }
 
-/// The data changed on the server meanwhile: HTTP 409 (`CONFLICT`) or 412
-/// (`PRECONDITION_FAILED`, the `If-Match` ETag is stale). Reload the
-/// resource, with its new `ETag`, before trying again.
+/// The data changed on the server meanwhile, or already exists: HTTP 409
+/// (`CONCURRENT_MODIFICATION`, `RESOURCE_ALREADY_EXISTS`). A 412 maps here
+/// too, though the backend never sends one today. Reload the resource
+/// before trying again.
 final class ConflictFailure extends AppFailure {
   /// Creates a conflict failure.
   const ConflictFailure(super.message, {super.code, super.cause});
@@ -129,15 +132,16 @@ final class ConflictFailure extends AppFailure {
   bool get isRetryable => true;
 }
 
-/// The backend refused the action because of a business rule
-/// (`BUSINESS_RULE_VIOLATION`). Features turn specific [code]s into their
+/// The backend refused the action because of a business rule: any HTTP
+/// 422 (`BUSINESS_RULE_VIOLATION` or a feature code). Features turn specific [code]s into their
 /// own [DomainFailure]s where a dedicated message is needed.
 final class BusinessRuleFailure extends AppFailure {
   /// Creates a business-rule failure.
   const BusinessRuleFailure(super.message, {super.code, super.cause});
 }
 
-/// Too many requests (HTTP 429, `RATE_LIMITED`).
+/// Too many requests (HTTP 429; the backend has no code for it and never
+/// sends one today).
 final class RateLimitedFailure extends AppFailure {
   /// Creates a rate-limited failure.
   const RateLimitedFailure(
@@ -155,7 +159,8 @@ final class RateLimitedFailure extends AppFailure {
   bool get isRetryable => true;
 }
 
-/// The service is down or overloaded (HTTP 503, `SERVICE_UNAVAILABLE`).
+/// The service is down or overloaded (HTTP 503,
+/// `EXTERNAL_SERVICE_UNAVAILABLE`).
 final class ServiceUnavailableFailure extends AppFailure {
   /// Creates a service-unavailable failure.
   const ServiceUnavailableFailure(

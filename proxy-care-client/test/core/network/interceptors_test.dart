@@ -11,13 +11,28 @@ import 'package:proxy_care_client/core/network/request_replay.dart';
 import 'package:proxy_care_client/core/network/transfer.dart';
 import 'package:proxy_care_client/core/security/redactor.dart';
 
+import '../../helpers/backend_api_error.dart';
 import '../../helpers/fake_http_adapter.dart';
 import '../../helpers/network_harness.dart';
 
-FakeResponder _ok() => respondJson(dataBody(null));
+FakeResponder _ok() => respondJson(const <String, Object?>{});
+
+/// The backend `ErrorCode` sent with [status]; null where the backend has
+/// none (412, 428, 429).
+String? _backendCode(int status) => switch (status) {
+  400 => 'VALIDATION_FAILED',
+  401 => 'UNAUTHENTICATED',
+  403 => 'ACCESS_DENIED',
+  404 => 'RESOURCE_NOT_FOUND',
+  409 => 'RESOURCE_ALREADY_EXISTS',
+  500 => 'INTERNAL_ERROR',
+  502 => 'EXTERNAL_SERVICE_ERROR',
+  503 => 'EXTERNAL_SERVICE_UNAVAILABLE',
+  _ => null,
+};
 
 FakeResponder _status(int status) =>
-    respondProblem('INTERNAL_ERROR', status: status);
+    respondApiError(_backendCode(status), status: status);
 
 void main() {
   group('AuthInterceptor', () {
@@ -386,13 +401,13 @@ void main() {
     });
 
     for (final (status, code) in [
-      (429, 'RATE_LIMITED'),
-      (503, 'SERVICE_UNAVAILABLE'),
+      (429, null),
+      (503, 'EXTERNAL_SERVICE_UNAVAILABLE'),
     ]) {
       test('waits out Retry-After on a $status before retrying', () async {
         final harness = NetworkHarness(
           responses: [
-            respondProblem(
+            respondApiError(
               code,
               status: status,
               headers: {
@@ -413,8 +428,8 @@ void main() {
     test('a Retry-After shorter than the backoff keeps the backoff', () async {
       final harness = NetworkHarness(
         responses: [
-          respondProblem(
-            'SERVICE_UNAVAILABLE',
+          respondApiError(
+            'EXTERNAL_SERVICE_UNAVAILABLE',
             status: 503,
             headers: {
               'Retry-After': ['0'],
@@ -432,8 +447,8 @@ void main() {
     test('a Retry-After beyond the limit is returned, not waited', () async {
       final harness = NetworkHarness(
         responses: [
-          respondProblem(
-            'RATE_LIMITED',
+          respondApiError(
+            null,
             status: 429,
             headers: {
               'Retry-After': ['120'],
@@ -459,8 +474,8 @@ void main() {
     test('Retry-After does not make a write retryable', () async {
       final harness = NetworkHarness(
         responses: [
-          respondProblem(
-            'SERVICE_UNAVAILABLE',
+          respondApiError(
+            'EXTERNAL_SERVICE_UNAVAILABLE',
             status: 503,
             headers: {
               'Retry-After': ['1'],
@@ -672,7 +687,7 @@ void main() {
         tokens: FakeTokens(token: 'secret-token'),
         responses: [
           respondJson(
-            dataBody({'patientName': 'Kamla Devi', 'age': 72}),
+            {'patientName': 'Kamla Devi', 'age': 72},
           ),
         ],
       );
@@ -694,6 +709,42 @@ void main() {
         expect(line, isNot(contains(secret)), reason: secret);
       }
     });
+
+    for (final detailedLogging in [false, true]) {
+      test('never logs the server error text '
+          '(detailed: $detailedLogging)', () async {
+        const serverMessage = 'Phone +919876543210 is already registered';
+        const serverFieldMessage = 'Anita Deshmukh is not a valid name';
+        final harness = NetworkHarness(
+          detailedLogging: detailedLogging,
+          responses: [
+            respondApiError(
+              'VALIDATION_FAILED',
+              status: 400,
+              message: serverMessage,
+              fieldErrors: {'fullName': serverFieldMessage},
+            ),
+          ],
+        );
+
+        await expectLater(
+          harness.client.put('/users/me', body: const {}, decode: ignoreBody),
+          throwsA(isA<ValidationException>()),
+        );
+
+        expect(harness.logs, isNotEmpty);
+        for (final line in harness.logs) {
+          for (final secret in [
+            '+919876543210',
+            serverMessage,
+            serverFieldMessage,
+            'Anita',
+          ]) {
+            expect(line, isNot(contains(secret)), reason: '$secret in $line');
+          }
+        }
+      });
+    }
 
     test('logs failures with their status or type', () async {
       final harness = NetworkHarness(

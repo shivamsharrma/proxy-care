@@ -6,7 +6,8 @@
 /// them into `AppFailure`s (see `guardResult`). The domain layer must not
 /// import this file (enforced by the architecture test).
 ///
-/// [message] is for developers and logs. It is never shown to users.
+/// [message] is a fixed developer default for the type: never the server's
+/// `message` (which can echo personal data), never shown to users.
 ///
 /// Note: [TimeoutException] has the same name as `dart:async`'s; a file that
 /// needs both imports `dart:async` with `hide TimeoutException`.
@@ -30,11 +31,11 @@ sealed class AppException implements Exception {
   /// HTTP status, when the error came from a response.
   final int? statusCode;
 
-  /// Machine-readable error code sent by the backend (the problem's
+  /// Machine-readable error code sent by the backend (the `ApiError`
   /// `code`), as sent. See [errorCode] for the standard codes.
   final String? code;
 
-  /// The problem's `traceId`: identifies the request in the backend's logs
+  /// The `ApiError`'s `meta.traceId`: identifies the request in the backend's logs
   /// and traces. Log it and quote it to support; never show it as an
   /// error message.
   final String? traceId;
@@ -114,26 +115,22 @@ final class NotFoundException extends AppException {
        );
 }
 
-/// The backend rejected the input (HTTP 400 / 422, or any 4xx that carries
-/// field errors).
+/// The backend rejected the input (HTTP 400, or any 4xx that carries field
+/// errors).
 ///
 /// [fieldErrors] maps a field name (a property path such as `patient.age`
-/// or `purposes[0]`; the empty string for an object-level error) to its
-/// messages, as sent by the backend in the problem's `errors`. It is
-/// unmodifiable.
+/// or `purposes[0]`) to its single message, from the backend's
+/// `fieldErrors`. It is unmodifiable.
 final class ValidationException extends AppException {
   /// Creates a validation exception. [fieldErrors] is copied.
   ValidationException({
     String message = 'The request was invalid.',
-    Map<String, List<String>> fieldErrors = const {},
+    Map<String, String> fieldErrors = const {},
     int? statusCode = 400,
     String? code,
     String? traceId,
     Object? cause,
-  }) : fieldErrors = Map.unmodifiable({
-         for (final MapEntry(:key, :value) in fieldErrors.entries)
-           key: List<String>.unmodifiable(value),
-       }),
+  }) : fieldErrors = Map.unmodifiable(fieldErrors),
        super(
          message,
          statusCode: statusCode,
@@ -142,14 +139,13 @@ final class ValidationException extends AppException {
          cause: cause,
        );
 
-  /// Messages per field; empty when the error is not about a field.
-  final Map<String, List<String>> fieldErrors;
+  /// The message per field; empty when the error is not about a field.
+  final Map<String, String> fieldErrors;
 }
 
 /// The backend failed (HTTP 5xx), answered with a status that has no more
-/// specific type (409 conflict, 412 / 428 precondition, 429 rate limited, a
-/// 4xx business-rule violation…), or sent a response the client could not
-/// read.
+/// specific type (409 conflict, 422 business-rule violation, 413, 415…),
+/// or sent a response the client could not read.
 final class ServerException extends AppException {
   /// Creates a server exception.
   const ServerException({

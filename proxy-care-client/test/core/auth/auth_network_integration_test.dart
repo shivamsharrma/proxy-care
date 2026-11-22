@@ -15,6 +15,7 @@ import 'package:proxy_care_client/core/network/dio_factory.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../helpers/auth_fakes.dart';
+import '../../helpers/backend_api_error.dart';
 import '../../helpers/fake_http_adapter.dart';
 
 /// A session whose refresh, like the SDK's, is shared by concurrent callers.
@@ -53,9 +54,10 @@ final class _DedupingSession extends FakeAuthenticationSession {
   return (DioApiClient(dio), adapter);
 }
 
-FakeResponder _unauthorized() => respondProblem('UNAUTHENTICATED', status: 401);
+FakeResponder _unauthorized() =>
+    respondApiError('UNAUTHENTICATED', status: 401);
 
-FakeResponder _ok() => respondJson(dataBody(null));
+FakeResponder _ok() => respondJson(const <String, Object?>{});
 
 /// 401 unless the request carries [token].
 FakeResponder _acceptsOnly(String token) => (options) {

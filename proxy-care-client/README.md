@@ -219,22 +219,24 @@ are committed: after changing an annotated model or an ARB file run
 
 Repositories call the backend through `ApiClient` (`apiClientProvider`),
 never Dio directly. Requests go to `<API_BASE_URL>/api/v1`. The client
-reads `{data}` / `{data, page}` success bodies (a 2xx is a success),
-decodes `data` with a typed decoder, maps RFC 9457 problem details to
-exceptions, exposes `ETag` and sends `If-Match`, sends
-JSON, supports multipart uploads, downloads, cursor pagination, idempotency
-keys and cancellation, and throws only `AppException`s. Interceptors, in
+reads bare JSON success bodies (a 2xx is a success) with a typed decoder,
+maps the backend's `ApiError` bodies to
+exceptions, exposes `ETag` and sends `If-Match` (not enforced by the
+backend today; a version clash is 409 `CONCURRENT_MODIFICATION`), sends
+JSON, supports multipart uploads, downloads, page-number pagination, idempotency
+keys (not enforced by the backend today) and cancellation, and throws only
+`AppException`s. Interceptors, in
 order: correlation ID, logging (redacted), authentication (bearer token,
 one replay after a 401), retry (GET only on 502/503/504, 429 with
 `Retry-After`, and transient connection errors; bounded backoff that
-honours `Retry-After`). Details: ARCHITECTURE.md,
-"Networking".
+honours `Retry-After`; the backend sends no `Retry-After` today). Details:
+ARCHITECTURE.md, "Networking".
 
 ## Error handling
 
 Infrastructure errors become `AppException`s in the data layer
-(`ErrorMapper` reads problem details and the backend codes of ADR
-0012, falling back to the HTTP status for an unknown code); repositories
+(`ErrorMapper` reads the backend's `ApiError` body and `ErrorCode`
+names, falling back to the HTTP status for an unknown code); repositories
 return
 `Result<T>` with typed `AppFailure`s (`guardResult`); presentation maps
 failures to localized messages (`failureMessage`). Uncaught errors go to
@@ -382,6 +384,6 @@ workflows: `pages.yml` (widget showcase on GitHub Pages) and `goldens.yml`
 | Flutter's built-in Material icons | Implemented |
 | Provisional breakpoints: compact < 600dp, tablet ≥ 600dp, 720dp max content width | Implemented in `PcBreakpoints` |
 | Light theme only | Implemented |
-| Backend problem details (RFC 9457) and codes, ADR 0012 | Implemented in `ErrorMapper` |
+| Backend `ApiError` bodies, `ErrorCode` names and `PageResponse` pages (`com.proxycare.common.api.ApiError`, `common.exception.ErrorCode`, `common.api.PageResponse`) | Implemented in `BackendErrorParser` and `ErrorMapper` |
 | Vendor-independent crash reporter, no-op for the MVP (Crashlytics is LL-05) | Implemented |
 | Localized user-facing error messages (ARB, English) | Implemented in `core/l10n` |

@@ -31,7 +31,7 @@ extension AppExceptionToFailure on AppException {
     ) =>
       ValidationFailure(
         message,
-        fieldErrors: fieldErrors,
+        invalidFields: Set.unmodifiable(fieldErrors.keys),
         code: code,
         cause: cause,
       ),
@@ -48,9 +48,9 @@ extension AppExceptionToFailure on AppException {
 }
 
 /// Splits server-side exceptions into the failures screens distinguish.
-/// The HTTP status decides first; the backend code decides only what the
-/// status leaves open. A 428 (`PRECONDITION_REQUIRED`: the client did not
-/// send `If-Match`) is a client bug and stays a [ServerFailure].
+/// The HTTP status decides first (any 422 is a business-rule violation,
+/// with or without a code); the backend code decides only what the status
+/// leaves open. A 428 is a client bug and stays a [ServerFailure].
 AppFailure _serverFailure(ServerException exception) {
   final ServerException(:message, :statusCode, :code, :retryAfter, :cause) =
       exception;
@@ -60,6 +60,8 @@ AppFailure _serverFailure(ServerException exception) {
   switch (statusCode) {
     case 409 || 412:
       return ConflictFailure(message, code: code, cause: cause);
+    case 422:
+      return BusinessRuleFailure(message, code: code, cause: cause);
     case 429:
       return RateLimitedFailure(
         message,
@@ -75,23 +77,8 @@ AppFailure _serverFailure(ServerException exception) {
         cause: cause,
       );
   }
-  final isServerSide = statusCode != null && statusCode >= 500;
   return switch (exception.errorCode) {
-    BackendErrorCode.businessRuleViolation when !isServerSide =>
-      BusinessRuleFailure(message, code: code, cause: cause),
-    BackendErrorCode.conflict ||
-    BackendErrorCode.preconditionFailed when !isServerSide => ConflictFailure(
-      message,
-      code: code,
-      cause: cause,
-    ),
-    BackendErrorCode.rateLimited when !isServerSide => RateLimitedFailure(
-      message,
-      retryAfter: retryAfter,
-      code: code,
-      cause: cause,
-    ),
-    BackendErrorCode.serviceUnavailable => ServiceUnavailableFailure(
+    BackendErrorCode.externalServiceUnavailable => ServiceUnavailableFailure(
       message,
       retryAfter: retryAfter,
       code: code,

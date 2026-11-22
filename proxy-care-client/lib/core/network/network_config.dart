@@ -1,6 +1,7 @@
 /// Fixed networking settings shared by every request.
 abstract final class NetworkConfig {
-  /// Path prefix of every Spring Boot API endpoint (ADR 0012: `/api/v1`).
+  /// Path prefix of every Spring Boot API endpoint (`/api/v1`, see
+  /// `.claude/rules/backend-code.md` → API).
   ///
   /// `API_BASE_URL` stays the host (plus any reverse-proxy prefix); the
   /// prefix is appended once, by `DioFactory` ([apiRoot]), so data sources
@@ -39,7 +40,7 @@ abstract final class NetworkConfig {
   static const Duration retryBaseDelay = Duration(milliseconds: 500);
 
   /// The longest `Retry-After` (429 / 503) that `RetryInterceptor` waits
-  /// out by itself. A longer one is not retried automatically: the error
+  /// out by itself. The backend sends no `Retry-After` today. A longer one is not retried automatically: the error
   /// reaches the caller with its `retryAfter`, so the screen can say when
   /// to try again instead of hanging.
   static const Duration maxRetryAfter = Duration(seconds: 10);
@@ -52,35 +53,32 @@ abstract final class ApiHeaders {
 
   /// Identifies one logical request across the client, retries and the
   /// client logs. The backend identifies the request in its own logs by
-  /// the problem's `traceId` (`AppException.traceId`).
+  /// the error's `meta.traceId` (`AppException.traceId`).
   static const String correlationId = 'X-Correlation-Id';
 
-  /// Makes a write safe to repeat (the backend's Idempotency-Key filter).
+  /// Makes a write safe to repeat. Not enforced by the backend today: it
+  /// has no Idempotency-Key filter.
   static const String idempotencyKey = 'Idempotency-Key';
 
-  /// Sends the `ETag` of the version being updated (optimistic
-  /// concurrency, ADR 0012).
+  /// Sends the `ETag` of the version being updated. Not enforced by the
+  /// backend today: it reads no `If-Match` and reports a version clash as
+  /// 409 `CONCURRENT_MODIFICATION`.
   static const String ifMatch = 'If-Match';
 
-  /// Version of a versioned resource, returned on reads and writes.
+  /// Version of a versioned resource. The backend sends none today.
   static const String etag = 'ETag';
 
   /// Path of a created resource (201 Created).
   static const String location = 'Location';
 
-  /// Seconds to wait before trying again (429, 503).
+  /// Seconds to wait before trying again (429, 503). The backend sends
+  /// none today.
   static const String retryAfter = 'Retry-After';
 
   /// Media types the client accepts.
   static const String accept = 'Accept';
 
-  /// JSON media type.
+  /// JSON media type: the backend's success bodies and `ApiError`s. Sent
+  /// as the `Accept` value of every request.
   static const String json = 'application/json';
-
-  /// RFC 9457 problem details media type, used for every error response.
-  static const String problemJson = 'application/problem+json';
-
-  /// The `Accept` value sent with every request: JSON for successes,
-  /// problem details for errors.
-  static const String acceptJson = '$json, $problemJson';
 }

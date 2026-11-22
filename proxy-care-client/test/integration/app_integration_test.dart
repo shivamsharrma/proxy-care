@@ -20,6 +20,7 @@ import 'package:proxy_care_client/core/router/redirect_destinations.dart';
 import 'package:proxy_care_client/core/router/router_options.dart';
 
 import '../helpers/auth_fakes.dart';
+import '../helpers/backend_api_error.dart';
 import '../helpers/fake_http_adapter.dart';
 import '../helpers/matchers.dart';
 import '../helpers/router_harness.dart';
@@ -72,7 +73,8 @@ Future<_App> _launch(
     token: token,
     tokenAfterRefresh: tokenAfterRefresh,
   )..currentState = auth;
-  final http = FakeHttpAdapter()..fallback = respondJson(dataBody(null));
+  final http = FakeHttpAdapter()
+    ..fallback = respondJson(const <String, Object?>{});
   final container = await bootstrap(
     variant: AppVariant.user,
     overrides: [
@@ -173,7 +175,7 @@ void main() {
 
     // The API sees the token; a 401 is recovered by one refresh and replay.
     app.http.enqueue([
-      respondProblem('UNAUTHENTICATED', status: 401),
+      respondApiError('UNAUTHENTICATED', status: 401),
     ]);
     await tester.runAsync(
       () =>
@@ -198,7 +200,7 @@ void main() {
     // Signed out, protected requests carry no token and fail as such.
     app.session.token = null;
     app.http.enqueue([
-      respondProblem('UNAUTHENTICATED', status: 401),
+      respondApiError('UNAUTHENTICATED', status: 401),
     ]);
     await tester.runAsync(
       () => expectLater(

@@ -1,19 +1,47 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logger/logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:proxy_care_client/core/error/app_exception.dart';
 import 'package:proxy_care_client/core/error/failure.dart';
 import 'package:proxy_care_client/core/error/failure_mapper.dart';
+import 'package:proxy_care_client/core/error/logger_error_reporter.dart';
 import 'package:proxy_care_client/core/error/repository_guard.dart';
 import 'package:proxy_care_client/core/error/serialization.dart';
+import 'package:proxy_care_client/core/logging/app_logger.dart';
+import 'package:proxy_care_client/core/logging/package_app_logger.dart';
+import 'package:proxy_care_client/core/network/api_client.dart';
 import 'package:proxy_care_client/shared/models/result.dart';
 
+import '../../helpers/backend_api_error.dart';
+import '../../helpers/network_harness.dart';
 import '../../mocks/core_mocks.dart';
 
 final _options = RequestOptions(path: '/me');
 
 /// Casting this to `int` is a programming error (a `TypeError`).
 const Object _notAnInt = 'seven';
+
+/// Every line the logger wrote.
+final class _Capture extends LogOutput {
+  final lines = <String>[];
+
+  @override
+  void output(OutputEvent event) => lines.addAll(event.lines);
+}
+
+/// The development error path: `errorReporterProvider` is a
+/// [LoggerErrorReporter] over a [PackageAppLogger] that writes error text
+/// (`includeErrorDetails` in development, `core_providers.dart`).
+(LoggerErrorReporter, _Capture) _developmentReporter() {
+  final capture = _Capture();
+  final logger = PackageAppLogger(
+    minimumLevel: LogLevel.debug,
+    includeErrorDetails: true,
+    output: capture,
+  );
+  return (LoggerErrorReporter(logger), capture);
+}
 
 void main() {
   setUpAll(() => registerFallbackValue(StackTrace.empty));
@@ -49,28 +77,21 @@ void main() {
           type: DioExceptionType.badResponse,
           response: Response<Object?>(
             requestOptions: _options,
-            statusCode: 422,
-            data: {
-              'type': 'urn:proxycare:problem:validation-error',
-              'title': 'Validation failed',
-              'status': 422,
-              'code': 'VALIDATION_ERROR',
-              'traceId': '4bf92f35',
-              'errors': [
-                {
-                  'field': 'mobile',
-                  'code': 'Pattern',
-                  'message': 'Enter 10 digits',
-                },
-              ],
-            },
+            statusCode: 400,
+            data: apiErrorBody(
+              'VALIDATION_FAILED',
+              message: 'Validation failed',
+              fieldErrors: {'mobile': 'Enter 10 digits'},
+              traceId: '4bf92f35',
+            ),
           ),
         ),
       );
 
       final failure = result.failureOrNull! as ValidationFailure;
-      expect(failure.errorsFor('mobile'), ['Enter 10 digits']);
-      expect(failure.errorsFor('name'), isEmpty);
+      expect(failure.invalidFields, {'mobile'});
+      expect(failure.hasErrorFor('mobile'), isTrue);
+      expect(failure.hasErrorFor('name'), isFalse);
     });
 
     test('reports unknown and unreadable-response failures', () async {
@@ -145,7 +166,9 @@ void main() {
         const ServerException(statusCode: 409): ConflictFailure,
         const ServerException(statusCode: 412): ConflictFailure,
         const ServerException(statusCode: 428): ServerFailure,
-        const ServerException(statusCode: 400, code: 'PRECONDITION_FAILED'):
+        const ServerException(statusCode: 409, code: 'CONCURRENT_MODIFICATION'):
+            ConflictFailure,
+        const ServerException(statusCode: 409, code: 'RESOURCE_ALREADY_EXISTS'):
             ConflictFailure,
         const ServerException(statusCode: 429): RateLimitedFailure,
         const ServerException(statusCode: 503): ServiceUnavailableFailure,
@@ -154,8 +177,14 @@ void main() {
           statusCode: 422,
           code: 'BUSINESS_RULE_VIOLATION',
         ): BusinessRuleFailure,
-        const ServerException(statusCode: 500, code: 'CONFLICT'): ServerFailure,
-        const ServerException(code: 'SERVICE_UNAVAILABLE'):
+        const ServerException(statusCode: 422, code: 'PAYOUT_NAME_MISMATCH'):
+            BusinessRuleFailure,
+        const ServerException(statusCode: 422): BusinessRuleFailure,
+        const ServerException(
+          statusCode: 500,
+          code: 'CONCURRENT_MODIFICATION',
+        ): ServerFailure,
+        const ServerException(code: 'EXTERNAL_SERVICE_UNAVAILABLE'):
             ServiceUnavailableFailure,
         const ServerException.invalidResponse(statusCode: 409): ServerFailure,
         const CancelledException(): CancelledFailure,
@@ -174,16 +203,13 @@ void main() {
     test('keeps the details the app needs', () {
       final failure =
           ValidationException(
-                fieldErrors: {
-                  'pan': ['Required'],
-                },
+                fieldErrors: {'pan': 'Required', 'ifsc': 'Invalid IFSC'},
                 code: 'VALIDATION_FAILED',
               ).toFailure()
               as ValidationFailure;
 
-      expect(failure.fieldErrors, {
-        'pan': ['Required'],
-      });
+      expect(failure.invalidFields, {'pan', 'ifsc'});
+      expect(() => failure.invalidFields.add('x'), throwsUnsupportedError);
       expect(failure.code, 'VALIDATION_FAILED');
       expect(
         (const TimeoutException().toFailure() as NetworkFailure).isTimeout,
@@ -209,6 +235,85 @@ void main() {
       expect(limited.retryAfter, wait);
       expect(unavailable.retryAfter, wait);
       expect(limited.isRetryable, isTrue);
+    });
+  });
+
+  group('server error text is never logged', () {
+    const serverText = 'Anita Deshmukh is already registered';
+    const serverFieldText = 'Anita Deshmukh is not a valid name';
+
+    Future<Result<void>> put(NetworkHarness harness, LoggerErrorReporter r) =>
+        guardResult<void>(
+          () => harness.client.put(
+            '/users/me',
+            body: const {},
+            decode: ignoreBody,
+          ),
+          reporter: r,
+        );
+
+    test(
+      'a 400 ApiError is not reported and its text is never logged',
+      () async {
+        final (reporter, capture) = _developmentReporter();
+        final harness = NetworkHarness(
+          responses: [
+            respondApiError(
+              'VALIDATION_FAILED',
+              status: 400,
+              message: serverText,
+              fieldErrors: {'fullName': serverFieldText},
+            ),
+          ],
+        );
+
+        final result = await put(harness, reporter);
+
+        expect(result.failureOrNull, isA<ValidationFailure>());
+        expect(capture.lines, isEmpty);
+        for (final line in capture.lines) {
+          expect(line, isNot(contains('Anita')), reason: line);
+        }
+      },
+    );
+
+    test('a 500 ApiError is reported without the server text', () async {
+      final (reporter, capture) = _developmentReporter();
+      final harness = NetworkHarness(
+        responses: [
+          respondApiError('INTERNAL_ERROR', status: 500, message: serverText),
+        ],
+      );
+
+      final result = await put(harness, reporter);
+
+      expect(result.failureOrNull, isA<ServerFailure>());
+      expect(capture.lines, isNotEmpty);
+      for (final line in capture.lines) {
+        expect(line, isNot(contains('Anita')), reason: line);
+      }
+    });
+
+    test('a failure reported later never logs the server text', () async {
+      final (reporter, capture) = _developmentReporter();
+      final harness = NetworkHarness(
+        responses: [
+          respondApiError(
+            'VALIDATION_FAILED',
+            status: 400,
+            message: serverText,
+            fieldErrors: {'fullName': serverFieldText},
+          ),
+        ],
+      );
+      final failure = (await put(harness, reporter)).failureOrNull!;
+
+      reporter.report(failure, StackTrace.empty, context: 'zone');
+
+      expect(capture.lines, isNotEmpty);
+      for (final line in capture.lines) {
+        expect(line, isNot(contains('Anita')), reason: line);
+      }
     });
   });
 }

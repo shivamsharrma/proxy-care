@@ -34,17 +34,10 @@ extension ErrorMessages on AppLocalizations {
   /// The message to show under [field] when [failure] rejected it, or null
   /// when the field is fine. Pass it to `PcTextField.error`.
   ///
-  /// The backend's field messages are not localized, so by default the
-  /// field shows the localized validation message. Set [backendText] only
-  /// for an endpoint whose field messages are agreed to be user-facing.
-  String? fieldErrorMessage(
-    AppFailure? failure,
-    String field, {
-    bool backendText = false,
-  }) {
-    if (failure is! ValidationFailure) return null;
-    final messages = failure.errorsFor(field);
-    if (messages.isEmpty) return null;
-    return backendText ? messages.first : errorValidation;
-  }
+  /// Always the localized validation message: the backend's field messages
+  /// are not localized and are never shown.
+  String? fieldErrorMessage(AppFailure? failure, String field) =>
+      failure is ValidationFailure && failure.hasErrorFor(field)
+      ? errorValidation
+      : null;
 }
