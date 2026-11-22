@@ -1,15 +1,13 @@
 # Screen: P5 Confirm arrival (Caretaker app)
 # Source: proxy-care-ui-ux-state-for-api-design.md (PRD v2.3) §5 P5, §1 Patient + Booking, §2 booking state + visit stage + fee strategy, §7 realtime; PRD 3.2
-# The design names the "wrong code" and "too many attempts" states but gives neither the wording nor the attempt limit.
-# Scenarios refer to the states by name and read the limit from test configuration.
+# The design names the "wrong code" state but not its wording; scenarios refer to it by name.
 # Assumption: the field keeps ASCII digits only and caps at 4, including pasted text. The design only says "4-digit".
 # Product decision (3 Nov 2026), overriding §5 P5:
 #   - The pickup code does not expire, so P5 has no "Resend code" action.
-#   - A blocked caretaker has to call customer support to be unblocked.
-# Assumption: the button is labelled "Call customer support", and unblocking resets the attempt count. Help is not designed yet (§9).
+# Product decision (22 Nov 2026): pickup code verification has no attempt limit and never blocks
+#   the caretaker. A wrong code only shows the "wrong code" state.
 #
 # Open design questions (no scenario until decided):
-#   - What is the attempt limit?
 #   - What happens on a no-show (§2 cancellation policy: full deduction, ₹0 refund)? No screen lets the caretaker report one at pickup.
 
 @regression @caretaker-app @pickup-and-ride @P5
@@ -24,7 +22,7 @@ Feature: Caretaker confirms arrival with the pickup code
     - A correct code moves the booking ASSIGNED -> IN_PROGRESS, sets stage PICKED_UP and starts billable time.
     - The patient's mobile is optional.
     - The code does not expire and cannot be resent from P5.
-    - Only customer support can lift a block caused by too many attempts.
+    - There is no attempt limit; wrong codes never block the caretaker.
 
   Background:
     Given today is "2026-11-02"
@@ -155,70 +153,12 @@ Feature: Caretaker confirms arrival with the pickup code
     Then the booking should be in state "IN_PROGRESS"
     And I should be on the "P6 Book ride or skip" screen
 
-  # ---------- Too many attempts ----------
-
-  @negative @security
-  Scenario: The last attempt before the limit is still allowed
-    Given I have made wrong code attempts up to 1 below the attempt limit
+  @negative
+  Scenario: Many wrong attempts never block the caretaker
+    Given I have made 20 wrong code attempts
     When I confirm arrival with the code "4821"
     Then the booking should be in state "IN_PROGRESS"
-
-  @negative @security
-  Scenario: Reaching the attempt limit blocks further attempts
-    Given I have made wrong code attempts up to 1 below the attempt limit
-    When I confirm arrival with the code "1234"
-    Then I should see the "too many attempts" state
-    And the "Confirm arrival" button should be disabled
-    And the "Call family" button should be enabled
-    And the "Call customer support" button should be enabled
-    And the booking should be in state "ASSIGNED"
-
-  @happy-path @device
-  Scenario: A blocked caretaker can call customer support
-    Given the pickup code attempts are blocked
-    And I am on the "P5 Confirm arrival" screen
-    When I tap "Call customer support"
-    Then the phone dialer should open with the customer support number
-
-
-  @negative @security
-  Scenario: A block does not lift with time
-    Given the pickup code attempts have been blocked for 24 hours
-    When I open the "P5 Confirm arrival" screen
-    Then I should see the "too many attempts" state
-
-  @happy-path
-  Scenario: The correct code works after customer support lifts the block
-    Given the pickup code attempts are blocked
-    And customer support has lifted the block
-    When I open the "P5 Confirm arrival" screen
-    And I confirm arrival with the code "4821"
-    Then the booking should be in state "IN_PROGRESS"
     And I should be on the "P6 Book ride or skip" screen
-
-  @negative
-  Scenario: Lifting the block resets the attempt count
-    Given the pickup code attempts are blocked
-    And customer support has lifted the block
-    When I open the "P5 Confirm arrival" screen
-    And I confirm arrival with the code "1234"
-    Then I should see the "wrong code" state
-    And I should not see the "too many attempts" state
-
-  @negative @security @api
-  Scenario: The correct code is rejected while attempts are blocked
-    Given the pickup code attempts are blocked
-    When the caretaker client submits the code "4821"
-    Then the server should reject the request
-    And the booking should be in state "ASSIGNED"
-    And billable time should not have started
-
-  @ui-state @security @device
-  Scenario: Reopening the app does not clear the attempt block
-    Given the pickup code attempts are blocked
-    When I force close and reopen the app
-    And I open the "P5 Confirm arrival" screen
-    Then I should see the "too many attempts" state
 
   # ---------- Code validity ----------
 

@@ -182,6 +182,62 @@ Feature: Role-based visibility and access rules during the hospital phase
     And the caretaker should not receive a second "Hospital bill paid" event
 
   # ---------------------------------------------------------------------------
+  # Final bill gate on Visit Completed
+  # Product decision (22 Nov 2026): Visit Completed is blocked while any bill on the
+  # booking is PAID_BILL_PENDING. Leave hospital is not blocked by it.
+  # ASSUMPTION: the error code name is placeholder.
+  # ---------------------------------------------------------------------------
+
+  @negative @api
+  Scenario: Visit Completed is rejected while a paid bill is waiting for the hospital's bill
+    Given booking "PC-2481" has stage "HANDOVER"
+    And a "₹500" hospital bill with status "PAID_BILL_PENDING" exists for booking "PC-2481"
+    When caretaker "Ramesh Kumar" calls "mark visit completed" for booking "PC-2481"
+    Then the server should respond with error "FINAL_BILL_PENDING"
+    And booking "PC-2481" should be in state "IN_PROGRESS"
+    And billable time should not have stopped
+
+  @negative @api
+  Scenario: One pending bill blocks Visit Completed even when other bills are attached
+    Given booking "PC-2481" has stage "HANDOVER"
+    And a "₹500" hospital bill with status "BILL_ATTACHED" exists for booking "PC-2481"
+    And a "₹300" hospital bill with status "PAID_BILL_PENDING" exists for booking "PC-2481"
+    When caretaker "Ramesh Kumar" calls "mark visit completed" for booking "PC-2481"
+    Then the server should respond with error "FINAL_BILL_PENDING"
+    And booking "PC-2481" should be in state "IN_PROGRESS"
+
+  @api
+  Scenario Outline: Visit Completed is allowed once no bill is waiting for the hospital's bill
+    Given booking "PC-2481" has stage "HANDOVER"
+    And a hospital bill with status "<status>" exists for booking "PC-2481"
+    When caretaker "Ramesh Kumar" calls "mark visit completed" for booking "PC-2481"
+    Then booking "PC-2481" should be in state "COMPLETED"
+
+    Examples:
+      | status            |
+      | BILL_ATTACHED     |
+      | QR_MISMATCH       |
+      | PAYMENT_REQUESTED |
+      | DISPUTED          |
+
+  @api
+  Scenario: Attaching the hospital's bill unblocks Visit Completed
+    Given booking "PC-2481" has stage "HANDOVER"
+    And a "₹500" hospital bill with status "PAID_BILL_PENDING" exists for booking "PC-2481"
+    When caretaker "Ramesh Kumar" attaches the hospital's bill to that bill
+    And caretaker "Ramesh Kumar" calls "mark visit completed" for booking "PC-2481"
+    Then booking "PC-2481" should be in state "COMPLETED"
+
+  Scenario: Leave hospital is not blocked by a paid bill waiting for the hospital's bill
+    Given I am logged in to the Caretaker app as "Ramesh Kumar"
+    And every service on booking "PC-2481" has status "COMPLETED"
+    And a "₹500" hospital bill with status "PAID_BILL_PENDING" exists for booking "PC-2481"
+    When I open the "Services to-do" screen
+    Then the "Leave hospital" button should be enabled
+    When I tap "Leave hospital"
+    Then I should be on the "Going home: book ride or skip" screen (D1)
+
+  # ---------------------------------------------------------------------------
   # Visibility rules
   # ---------------------------------------------------------------------------
 

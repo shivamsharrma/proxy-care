@@ -6,34 +6,51 @@ Gherkin specs in `atdd/test-specs/`. Nothing here is product code.
 ## Pipeline
 
 ```text
-/ship <spec>
-  ├─ /plan-feature ── planner ─────────────────────────► plan.md   ◆ GATE 1: human approves
+/ship-feature <spec>
+  ├─ /plan-feature ───────── feature-planner ──────────────► plan.md   ◆ GATE 1: human approves
   └─ per slice:
-       ├─ /write-tests ── test-writer ─────────────────► failing tests (unit/widget + Maestro)
-       ├─ /implement ──── flutter-/spring-implementer ─► green
-       ├─ /review ─────── 4 reviewers in parallel ─────► review.md (BLOCKER/MAJOR → back to implement)
-       ├─ /verify ─────── verifier ────────────────────► verify.md (VERDICT: PASS required)
+       ├─ /write-failing-tests ── test-writer ──────────────► failing tests (unit/widget + Maestro)
+       ├─ /implement-slice ────── client-/backend-implementer ► green
+       ├─ /review-changes ─────── 4 reviewers in parallel ──► review.md (BLOCKER/MAJOR → back to implement)
+       ├─ /run-quality-gate ───── quality-gate-runner ──────► verify.md (VERDICT: PASS required)
        └─ commit
-  /open-pr ── release-manager ──────────────────────────► PR     ◆ GATE 2: human approves push + PR
+  /open-pr ────────────────── release-manager ──────────────► PR     ◆ GATE 2: human approves push + PR
+
+Naming: skills are verbs (`/run-quality-gate`), agents are roles
+(`quality-gate-runner`), rules are topics (`backend-code.md`); `client-` /
+`backend-` match `proxy-care-client/` and `proxy-care-backend/`.
 ```
 
-`/ship` runs in the main thread because subagents cannot spawn subagents.
-Artifacts live in `.claude/work/<slug>/` (gitignored). Ops: `/deploy-status`,
-`/rollback` (plans only — never deploys or merges).
+`/ship-feature` runs in the main thread because subagents cannot spawn subagents.
+Artifacts live in `.claude/work/<slug>/` (gitignored). Ops: `/report-release-status`,
+`/plan-rollback` (plans only — never deploys or merges).
 
 ## Layout
 
 | Path | Purpose |
 | --- | --- |
-| `../CLAUDE.md`, `../proxy-care-*/CLAUDE.md` | Commands, boundaries, "never" rules |
-| `rules/*.md` | Topic rules, path-scoped via `paths:` frontmatter |
+| `../CLAUDE.md` | Repo map, slug/branch, "always" and "never" rules |
+| `rules/*.md` | Topic rules. `security.md`, `git-and-pr.md` (no `paths:`) load in every session and subagent; the rest load when matching paths are touched |
 | `skills/<name>/SKILL.md` | Pipeline skills + domain skills |
-| `agents/*.md` | Subagents; reviewers and planner are read-only (`Read, Grep, Glob`) |
+| `agents/*.md` | Subagents; reviewers and feature-planner are read-only (`Read, Grep, Glob`) |
 | `hooks/*.js` | Node hooks (Windows-safe, no deps) |
 | `settings.json` | Permissions + hook wiring |
 | `mcp/maestro-mcp.js` | Cross-platform launcher for `maestro mcp` |
 | `../.mcp.json` | MCP servers |
 | `../.claude-plugin/` | `proxy-care-sdlc` plugin + local marketplace |
+
+### Where an instruction belongs
+Each fact is written once; everything else points to it.
+
+| Kind | Home |
+| --- | --- |
+| Invariants every session and subagent needs | `../CLAUDE.md`, `rules/security.md`, `rules/git-and-pr.md` (always loaded — never repeat them elsewhere) |
+| What code must look like (conventions, limits) | `rules/` — e.g. `backend-code.md`, `testing.md` |
+| Test and gate commands, NOT RUN semantics | `rules/testing.md` → Commands, Rules |
+| How to do a task, step by step | `skills/` — they cite rule sections, never restate them |
+| Review findings format and severity scale | `skills/review-changes/SKILL.md` → Findings format |
+| A role: inputs, tools, output format | `agents/` — they name the rules and skill to read |
+| Product architecture | `proxy-care-*/ARCHITECTURE.md`, backend `README.md` |
 
 ## Hooks
 

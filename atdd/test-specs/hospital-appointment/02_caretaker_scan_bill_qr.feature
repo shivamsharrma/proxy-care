@@ -341,7 +341,8 @@ Feature: Caretaker scans a hospital bill QR, requests payment and attaches the b
     And I am on the "Services to-do" screen
     Then the "Start" buttons on pending services should be enabled
 
-  # Whether a PAID_BILL_PENDING bill blocks Leave hospital is open (context §9), so it is not specified here.
+  # Decided (22 Nov 2026): a PAID_BILL_PENDING bill does not block Leave hospital; it blocks
+  # Visit Completed (05_hospital_access_control.feature, "Final bill gate on Visit Completed").
   Scenario: Leaving the hospital is allowed with an unpaid bill, but earnings go on hold later
     Given a "₹500" hospital bill has status "PAYMENT_REQUESTED"
     And every service on booking "PC-2481" has status "COMPLETED"
