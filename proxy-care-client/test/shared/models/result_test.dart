@@ -90,8 +90,8 @@ void main() {
   test('is handled exhaustively, including failure subtypes', () {
     String describe(Result<int> result) => switch (result) {
       Success(:final value) => 'value $value',
-      Failure(failure: ValidationFailure(:final fieldErrors)) =>
-        'invalid ${fieldErrors.keys.join(',')}',
+      Failure(failure: ValidationFailure(:final invalidFields)) =>
+        'invalid ${invalidFields.join(',')}',
       Failure(failure: DomainFailure(:final message)) => 'rule: $message',
       Failure(:final failure) => 'failed: ${failure.runtimeType}',
     };
@@ -100,12 +100,7 @@ void main() {
     expect(
       describe(
         const Failure(
-          ValidationFailure(
-            'invalid',
-            fieldErrors: {
-              'mobile': ['Enter 10 digits'],
-            },
-          ),
+          ValidationFailure('invalid', invalidFields: {'mobile'}),
         ),
       ),
       'invalid mobile',

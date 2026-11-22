@@ -44,8 +44,13 @@ Detailed documents: [ARCHITECTURE.md](ARCHITECTURE.md),
 | iOS | Supported. CI builds an unsigned release build. |
 | Web | Supported (development and the widget showcase). CI builds a release bundle. |
 
-Android and iOS were added in Milestone 10 with placeholder identifiers
-(`com.proxycare.client`); see the platform sections before any store
+One codebase builds two apps, chosen by `APP_VARIANT` (`user` or
+`caretaker`): the User app `com.proxycare.user` ("proxy-care") and the
+Caretaker app `com.proxycare.caretaker` ("proxy-caretaker"). Each registers
+only its own routes (`lib/app_routes.dart`); this is a UX boundary, not a
+security one, because the server checks roles. On Android the variant is
+also a product flavor; iOS still has one placeholder bundle ID
+(`com.proxycare.client`). See the platform sections before any store
 release.
 
 ## Toolchain
@@ -176,7 +181,9 @@ make get        # flutter pub get
 make gen        # build_runner + flutter gen-l10n
 make analyze
 make test
-flutter run --dart-define-from-file=config/env/development.json   # add -d <device>
+make run-user   # or run-caretaker: Android, --flavor + APP_VARIANT
+# iOS, web: flutter run --dart-define=APP_VARIANT=user \
+#   --dart-define-from-file=config/env/development.json   # add -d <device>
 ```
 
 The development config points at a backend on `http://localhost:8080`; on
@@ -199,34 +206,37 @@ are committed: after changing an annotated model or an ARB file run
 | `make test` | `flutter test` |
 | `make goldens` | Regenerate golden images (Linux; see TESTING.md) |
 | `make check-env [ENV=…]` | Validate `config/env/<ENV>.json` |
-| `make build-android [ENV=…]` | Validate, then `flutter build apk --release` and `flutter build appbundle --release` |
-| `make build-ios [ENV=…]` | Validate, then `flutter build ios --release --no-codesign` (macOS) |
-| `make build-web [ENV=…]` | Validate, then `flutter build web --release` |
+| `make run-user` / `make run-caretaker [ENV=…]` | Validate, then `flutter run` that app's Android flavor |
+| `make build-android [ENV=…] [VARIANT=…]` | Validate, then `flutter build apk --release` and `flutter build appbundle --release` for the `VARIANT` flavor (`build-android-user`, `build-android-caretaker`) |
+| `make build-ios [ENV=…] [VARIANT=…]` | Validate, then `flutter build ios --release --no-codesign` (macOS; `build-ios-user`, `build-ios-caretaker`) |
+| `make build-web [ENV=…] [VARIANT=…]` | Validate, then `flutter build web --release` |
 | `make build-showcase [BASE_HREF=…]` | Web build of the widget showcase |
 
-`ENV` defaults to `development`. Outputs: `build/app/outputs/` (Android),
+`ENV` defaults to `development`, `VARIANT` to `user`. Outputs: `build/app/outputs/` (Android),
 `build/ios/iphoneos/Runner.app` (iOS), `build/web/`.
 
 ## API integration
 
 Repositories call the backend through `ApiClient` (`apiClientProvider`),
 never Dio directly. Requests go to `<API_BASE_URL>/api/v1`. The client
-reads `{data}` / `{data, page}` success bodies (a 2xx is a success),
-decodes `data` with a typed decoder, maps RFC 9457 problem details to
-exceptions, exposes `ETag` and sends `If-Match`, sends
-JSON, supports multipart uploads, downloads, cursor pagination, idempotency
-keys and cancellation, and throws only `AppException`s. Interceptors, in
+reads bare JSON success bodies (a 2xx is a success) with a typed decoder,
+maps the backend's `ApiError` bodies to
+exceptions, exposes `ETag` and sends `If-Match` (not enforced by the
+backend today; a version clash is 409 `CONCURRENT_MODIFICATION`), sends
+JSON, supports multipart uploads, downloads, page-number pagination, idempotency
+keys (not enforced by the backend today) and cancellation, and throws only
+`AppException`s. Interceptors, in
 order: correlation ID, logging (redacted), authentication (bearer token,
 one replay after a 401), retry (GET only on 502/503/504, 429 with
 `Retry-After`, and transient connection errors; bounded backoff that
-honours `Retry-After`). Details: ARCHITECTURE.md,
-"Networking".
+honours `Retry-After`; the backend sends no `Retry-After` today). Details:
+ARCHITECTURE.md, "Networking".
 
 ## Error handling
 
 Infrastructure errors become `AppException`s in the data layer
-(`ErrorMapper` reads problem details and the backend codes of ADR
-0012, falling back to the HTTP status for an unknown code); repositories
+(`ErrorMapper` reads the backend's `ApiError` body and `ErrorCode`
+names, falling back to the HTTP status for an unknown code); repositories
 return
 `Result<T>` with typed `AppFailure`s (`guardResult`); presentation maps
 failures to localized messages (`failureMessage`). Uncaught errors go to
@@ -307,8 +317,8 @@ touching `proxy-care-client/`, with Flutter 3.50.0:
 | Job | Runner | Steps |
 | --- | --- | --- |
 | Web | Ubuntu | get, gen, format; fail if the lockfile, generated files or formatting changed; analyze; test; config checks (release configs never fall back to development); `make build-web` |
-| Android | Ubuntu, JDK 21 | get (locked), gen, format check, analyze, test, `make build-android` (APK + App Bundle) |
-| iOS | macOS, latest stable Xcode | get (locked), gen, format check, analyze, test, `make build-ios` (no code signing) |
+| Android | Ubuntu, JDK 21 | get (locked), gen, format check, analyze, test, `make build-android-user` and `build-android-caretaker` (APK + App Bundle) |
+| iOS | macOS, latest stable Xcode | get (locked), gen, format check, analyze, test, `make build-ios-user` and `build-ios-caretaker` (no code signing) |
 
 No signing credentials are used and nothing is deployed to a store. Other
 workflows: `pages.yml` (widget showcase on GitHub Pages) and `goldens.yml`
@@ -316,9 +326,11 @@ workflows: `pages.yml` (widget showcase on GitHub Pages) and `goldens.yml`
 
 ## Android configuration
 
-- **Application ID** `com.proxycare.client` (placeholder; the Kotlin
-  namespace stays `com.proxycare.proxy_care_client`). Register the real ID
-  before release; it cannot change after publishing.
+- **Flavors** (dimension `app`): `user` = `com.proxycare.user`, label
+  "proxy-care"; `caretaker` = `com.proxycare.caretaker`, label
+  "proxy-caretaker" (`manifestPlaceholders["appName"]` → `android:label="${appName}"`). The Kotlin namespace stays
+  `com.proxycare.proxy_care_client`. Every build needs `--flavor` and the
+  matching `--dart-define=APP_VARIANT`. IDs cannot change after publishing.
 - **Permissions:** `INTERNET`; `ACCESS_NETWORK_STATE` comes from
   `connectivity_plus`.
 - **Backups off:** `allowBackup="false"`, `fullBackupContent="false"` and
@@ -339,7 +351,12 @@ workflows: `pages.yml` (widget showcase on GitHub Pages) and `goldens.yml`
 ## iOS configuration
 
 - **Bundle ID** `com.proxycare.client` (placeholder), display name "Proxy
-  Care", minimum iOS 15.0.
+  Care", minimum iOS 15.0. Both apps build from the `Runner` scheme with
+  only `APP_VARIANT` set. Still to do in Xcode: `Debug-`/`Release-`/
+  `Profile-` `user` and `caretaker` build configurations, `user` and
+  `caretaker` schemes, `PRODUCT_BUNDLE_IDENTIFIER` `com.proxycare.user` /
+  `com.proxycare.caretaker` and display names "proxy-care" /
+  "proxy-caretaker"; then add `--flavor` to `make build-ios`.
 - **Keychain:** `flutter_secure_storage` with
   `first_unlock_this_device`, not synchronized. No extra entitlement is
   needed for the app's own Keychain items. Keychain items survive
@@ -367,6 +384,6 @@ workflows: `pages.yml` (widget showcase on GitHub Pages) and `goldens.yml`
 | Flutter's built-in Material icons | Implemented |
 | Provisional breakpoints: compact < 600dp, tablet ≥ 600dp, 720dp max content width | Implemented in `PcBreakpoints` |
 | Light theme only | Implemented |
-| Backend problem details (RFC 9457) and codes, ADR 0012 | Implemented in `ErrorMapper` |
+| Backend `ApiError` bodies, `ErrorCode` names and `PageResponse` pages (`com.proxycare.common.api.ApiError`, `common.exception.ErrorCode`, `common.api.PageResponse`) | Implemented in `BackendErrorParser` and `ErrorMapper` |
 | Vendor-independent crash reporter, no-op for the MVP (Crashlytics is LL-05) | Implemented |
 | Localized user-facing error messages (ARB, English) | Implemented in `core/l10n` |

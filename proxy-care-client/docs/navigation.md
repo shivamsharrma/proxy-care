@@ -9,9 +9,11 @@ locations are registered.
 ## How routes are registered
 
 ```text
-lib/app_routes.dart            appRouteModules = [BookingsRoutes(), ...]
+lib/app_routes.dart            _sharedRouteModules, _userRouteModules,
+        │                      _caretakerRouteModules = [BookingsRoutes(), ...]
         │  (main.dart overrides routeModulesProvider with
-        │   enabledRouteModules(env): these plus dev-only modules)
+        │   routeModulesFor(variant, env): shared + the variant's list,
+        │   plus the dev-only modules of enabledRouteModules(env))
         ▼
 core/di/router_providers.dart  routeRegistryProvider ─► RouteRegistry
         │                         (validates every module)
@@ -21,7 +23,8 @@ features/<f>/<f>_routes.dart   class <F>Routes extends RouteModule
 
 A feature adds one file, `features/<feature>/<feature>_routes.dart`, with
 its `RouteDefinition`s and a `RouteModule`, and one line in
-`lib/app_routes.dart`. `core` never imports features (an architecture test
+`lib/app_routes.dart`: in `_sharedRouteModules` if both apps show it, else
+in `_userRouteModules` or `_caretakerRouteModules`. `core` never imports features (an architecture test
 enforces this). `RouteRegistry` rejects, all at once and at start-up:
 
 - a module name that is not lowerCamelCase, or listed twice;

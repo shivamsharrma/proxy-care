@@ -1,7 +1,7 @@
-/// The backend's standard error codes: the `code` member of a problem
-/// details error response (ADR 0012). Stable, machine-readable
-/// identifiers: error handling and localized messages may branch on them,
-/// never on the problem's `title` or `detail`.
+/// The backend's error codes: the `code` member of an `ApiError` body,
+/// named exactly as `com.proxycare.common.exception.ErrorCode`. Stable,
+/// machine-readable identifiers: error handling and localized messages may
+/// branch on them, never on the error's `message`.
 ///
 /// HTTP status codes stay authoritative for transport-level classification;
 /// a code only refines what the status leaves open (for example a 422 that
@@ -11,68 +11,59 @@
 ///
 /// Pure Dart: failures carry it into the domain and presentation layers.
 enum BackendErrorCode {
-  /// Unreadable JSON, unknown property, wrong type, bad query parameter.
+  /// Bean Validation rejected the body (`fieldErrors` lists the fields).
+  validationFailed('VALIDATION_FAILED', 400),
+
+  /// An unreadable body, a parameter that is missing or of the wrong type,
+  /// or another Spring client error (sent as 400).
   malformedRequest('MALFORMED_REQUEST', 400),
+
+  /// HTTP method not supported.
+  invalidParameter('INVALID_PARAMETER', 400),
 
   /// No or invalid credentials.
   unauthenticated('UNAUTHENTICATED', 401),
 
   /// Authenticated but not allowed.
-  forbidden('FORBIDDEN', 403),
+  accessDenied('ACCESS_DENIED', 403),
 
   /// Unknown resource, or one the caller may not see.
-  notFound('NOT_FOUND', 404),
+  resourceNotFound('RESOURCE_NOT_FOUND', 404),
 
-  /// Method not supported.
-  methodNotAllowed('METHOD_NOT_ALLOWED', 405),
+  /// The caller has no profile yet.
+  profileNotFound('PROFILE_NOT_FOUND', 404),
 
-  /// No acceptable representation for `Accept`.
-  notAcceptable('NOT_ACCEPTABLE', 406),
+  /// A uniqueness or integrity conflict.
+  resourceAlreadyExists('RESOURCE_ALREADY_EXISTS', 409),
 
-  /// Concurrent modification without `If-Match`, or a uniqueness or
-  /// integrity conflict.
-  conflict('CONFLICT', 409),
+  /// The resource changed since it was read (optimistic locking).
+  concurrentModification('CONCURRENT_MODIFICATION', 409),
 
-  /// `If-Match` does not match the current version (stale `ETag`).
-  preconditionFailed('PRECONDITION_FAILED', 412),
-
-  /// Request body over 1 MB.
+  /// Request body over the size limit.
   payloadTooLarge('PAYLOAD_TOO_LARGE', 413),
 
   /// Body media type not supported.
   unsupportedMediaType('UNSUPPORTED_MEDIA_TYPE', 415),
 
-  /// Well-formed request with invalid values (`errors` lists them).
-  validationError('VALIDATION_ERROR', 422),
-
   /// A domain rule refused the action.
   businessRuleViolation('BUSINESS_RULE_VIOLATION', 422),
-
-  /// `If-Match` missing where the resource requires it.
-  preconditionRequired('PRECONDITION_REQUIRED', 428),
-
-  /// Too many requests (`Retry-After` in seconds).
-  rateLimited('RATE_LIMITED', 429),
 
   /// Anything unexpected on the server.
   internalError('INTERNAL_ERROR', 500),
 
   /// A vendor failed or answered unusably.
-  upstreamError('UPSTREAM_ERROR', 502),
+  externalServiceError('EXTERNAL_SERVICE_ERROR', 502),
 
-  /// A dependency is unavailable or overloaded (`Retry-After` in seconds).
-  serviceUnavailable('SERVICE_UNAVAILABLE', 503),
-
-  /// A vendor did not answer in time.
-  upstreamTimeout('UPSTREAM_TIMEOUT', 504);
+  /// A vendor is unavailable.
+  externalServiceUnavailable('EXTERNAL_SERVICE_UNAVAILABLE', 503);
 
   const BackendErrorCode(this.wireName, this.impliedStatus);
 
   /// The value sent by the backend.
   final String wireName;
 
-  /// The HTTP status the backend sends with this code (ADR 0012).
-  /// Informative only: classification uses the transport status.
+  /// The HTTP status the backend sends with this code. Informative only:
+  /// classification uses the transport status.
   final int impliedStatus;
 
   /// The code for [wireName], or null for a missing or unknown code (the

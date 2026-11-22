@@ -6,7 +6,7 @@
          with an Android Keystore key that never leaves the device, so a
          restored copy could not be decrypted (SECURITY.md). -->
     <application
-        android:label="Proxy Care"
+        android:label="${appName}"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"

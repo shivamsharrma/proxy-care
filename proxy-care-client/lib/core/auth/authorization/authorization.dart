@@ -5,11 +5,17 @@
 /// own; a client decision can always be bypassed.
 library;
 
-/// A named role, e.g. as issued in a server-controlled token claim. No role
-/// names are defined here; features define the ones they need.
+/// A named role, e.g. as issued in a server-controlled token claim. Only the
+/// two app roles are defined here; features define any others they need.
 final class Role {
   /// Creates a role.
   const Role(this.name);
+
+  /// The family member who books care (the User app).
+  static const user = Role('USER');
+
+  /// The caretaker who takes the patient to hospital (the Caretaker app).
+  static const caretaker = Role('CARETAKER');
 
   /// Role identifier as issued by the server.
   final String name;

@@ -6,8 +6,8 @@ they can be inspected and tried in a browser. It is not a product screen.
 
 - `widget_showcase_routes.dart`: the route module. `isEnabled(env)` is true
   only when `FEATURE_FLAGS` contains `widget_showcase` and `APP_ENV` is not
-  `production`; `enabledRouteModules` in `lib/app_routes.dart` registers the
-  module only then. The route is public: it shows no user data and calls no
+  `production`; `enabledRouteModules` in `lib/app_routes.dart` (the
+  development-only modules both apps add) registers the module only then. The route is public: it shows no user data and calls no
   API, so it does not depend on the authentication state.
 - `presentation/widget_showcase_screen.dart`: category filter, local density
   preview (the app-wide density is not changed) and the sections.

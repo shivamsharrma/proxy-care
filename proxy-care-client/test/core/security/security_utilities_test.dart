@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:proxy_care_client/core/auth/authentication_state.dart';
+import 'package:proxy_care_client/core/config/app_variant.dart';
 import 'package:proxy_care_client/core/di/app_container.dart';
 import 'package:proxy_care_client/core/di/auth_providers.dart';
 import 'package:proxy_care_client/core/di/core_providers.dart';
@@ -89,6 +90,7 @@ void main() {
         ..currentState = const Unauthenticated();
       final container = createAppContainer(
         env: testEnv(),
+        variant: AppVariant.user,
         overrides: [
           authenticationSessionProvider.overrideWithValue(session),
           loggerProvider.overrideWithValue(RecordingLogger()),

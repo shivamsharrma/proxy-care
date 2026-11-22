@@ -15,9 +15,7 @@ android {
     }
 
     defaultConfig {
-        // Placeholder ID: replace with the registered ID before a store
-        // release (see README, "Android configuration").
-        applicationId = "com.proxycare.client"
+        // The application ID and app name come from the product flavor.
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -34,6 +32,25 @@ android {
         // `-PappLinkHost=<domain>` once one is (docs/deep-linking.md).
         manifestPlaceholders["appLinkHost"] =
             (project.findProperty("appLinkHost") as String?) ?: "app-links.invalid"
+    }
+
+    // One flavor per app (APP_VARIANT): build with `--flavor user` or
+    // `--flavor caretaker` plus the matching `--dart-define=APP_VARIANT=...`
+    // (see the Makefile). The Kotlin namespace stays shared. The app name is
+    // the `appName` manifest placeholder (android:label), set per flavor with
+    // `[]=` so it merges with the defaultConfig placeholders.
+    flavorDimensions += "app"
+    productFlavors {
+        create("user") {
+            dimension = "app"
+            applicationId = "com.proxycare.user"
+            manifestPlaceholders["appName"] = "proxy-care"
+        }
+        create("caretaker") {
+            dimension = "app"
+            applicationId = "com.proxycare.caretaker"
+            manifestPlaceholders["appName"] = "proxy-caretaker"
+        }
     }
 
     buildTypes {

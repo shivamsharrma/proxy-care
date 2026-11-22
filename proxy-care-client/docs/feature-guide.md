@@ -243,7 +243,9 @@ final class VisitsRoutes extends RouteModule {
 }
 ```
 
-Add `VisitsRoutes()` to `appRouteModules` in `lib/app_routes.dart`. Link
+Add `VisitsRoutes()` to one list in `lib/app_routes.dart`:
+`_sharedRouteModules` (both apps), `_userRouteModules` or
+`_caretakerRouteModules` (one app only). Link
 with `VisitRoutes.detail.location(pathParameters: {'visitId': id})`;
 identity in the path, extras optional. Notification types the feature
 handles go in `notificationRoutes` (`'visits.updated'`). Conventions:
@@ -266,8 +268,8 @@ element has a semantic label and the 48 px minimum target
 Mirror the folders under `test/features/<feature>/` ([TESTING.md](../TESTING.md)):
 
 - mappers and use cases: plain unit tests;
-- data source: `FakeHttpAdapter` responses, including problem details
-  (`respondProblem`);
+- data source: `FakeHttpAdapter` responses, including backend errors
+  (`respondApiError`);
 - repository: success and every failure path (`isFailureOf<…>()`);
 - controller: `createTestContainer` with a fake repository
   (`test/features/<feature>/fakes.dart`);

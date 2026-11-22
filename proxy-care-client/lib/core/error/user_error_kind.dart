@@ -5,40 +5,43 @@ import 'failure.dart';
 ///
 /// Pure Dart; the localized text is looked up in `core/l10n`.
 enum UserErrorKind {
-  /// NETWORK_ERROR.
+  /// The server could not be reached.
   network,
 
-  /// TIMEOUT.
+  /// The request timed out (client timeout, HTTP 408 / 504).
   timeout,
 
-  /// UNAUTHENTICATED.
+  /// HTTP 401 (`UNAUTHENTICATED`).
   unauthenticated,
 
-  /// FORBIDDEN.
+  /// HTTP 403 (`ACCESS_DENIED`).
   forbidden,
 
-  /// NOT_FOUND.
+  /// HTTP 404 (`RESOURCE_NOT_FOUND`, `PROFILE_NOT_FOUND`).
   notFound,
 
-  /// VALIDATION_ERROR.
+  /// HTTP 400 (`VALIDATION_FAILED`; `MALFORMED_REQUEST`: unreadable body
+  /// or a missing or mistyped parameter; `INVALID_PARAMETER`: HTTP method
+  /// not supported) or a 4xx with field errors.
   validation,
 
-  /// CONFLICT.
+  /// HTTP 409 (`CONCURRENT_MODIFICATION`, `RESOURCE_ALREADY_EXISTS`).
   conflict,
 
-  /// BUSINESS_RULE_VIOLATION.
+  /// HTTP 422 (`BUSINESS_RULE_VIOLATION` or a feature code).
   businessRule,
 
-  /// RATE_LIMITED.
+  /// HTTP 429 (no backend code; not sent today).
   rateLimited,
 
-  /// SERVER_ERROR.
+  /// Other server errors (`INTERNAL_ERROR`, `EXTERNAL_SERVICE_ERROR`,
+  /// an unreadable response).
   server,
 
-  /// SERVICE_UNAVAILABLE.
+  /// HTTP 503 (`EXTERNAL_SERVICE_UNAVAILABLE`).
   serviceUnavailable,
 
-  /// UNKNOWN_ERROR.
+  /// Anything the app could not classify.
   unknown;
 
   /// The message category for [failure], or null for a cancelled operation
