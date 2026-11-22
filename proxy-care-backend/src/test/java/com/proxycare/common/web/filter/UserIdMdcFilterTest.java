@@ -3,7 +3,7 @@ package com.proxycare.common.web.filter;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.proxycare.common.logging.MdcKeys;
-import com.proxycare.common.security.identity.AuthenticatedPrincipal;
+import com.proxycare.common.security.identity.AuthenticatedUser;
 import com.proxycare.common.security.identity.ISecurityIdentityProvider;
 import jakarta.servlet.FilterChain;
 import java.util.Optional;
@@ -29,14 +29,14 @@ class UserIdMdcFilterTest {
 
     @Test
     void authenticatedRequestLogsCarryTheUserId() throws Exception {
-        run(Optional.of(new AuthenticatedPrincipal(userId, "+919876543210", Set.of())));
+        run(Optional.of(new AuthenticatedUser(userId, "+919876543210", Set.of())));
 
         assertThat(userIdDuringRequest.get()).isEqualTo(userId.toString());
     }
 
     @Test
     void userIdIsRemovedWhenTheRequestEnds() throws Exception {
-        run(Optional.of(new AuthenticatedPrincipal(userId, "+919876543210", Set.of())));
+        run(Optional.of(new AuthenticatedUser(userId, "+919876543210", Set.of())));
 
         assertThat(MDC.get(MdcKeys.USER_ID)).isNull();
     }
@@ -48,21 +48,21 @@ class UserIdMdcFilterTest {
         assertThat(userIdDuringRequest.get()).isNull();
     }
 
-    private void run(Optional<AuthenticatedPrincipal> caller) throws Exception {
-        new UserIdMdcFilter(identityReturning(caller))
+    private void run(Optional<AuthenticatedUser> authenticatedUser) throws Exception {
+        new UserIdMdcFilter(identityReturning(authenticatedUser))
                 .doFilter(new MockHttpServletRequest(), new MockHttpServletResponse(), filterChain);
     }
 
-    private static ISecurityIdentityProvider identityReturning(Optional<AuthenticatedPrincipal> caller) {
+    private static ISecurityIdentityProvider identityReturning(Optional<AuthenticatedUser> authenticatedUser) {
         return new ISecurityIdentityProvider() {
             @Override
-            public Optional<AuthenticatedPrincipal> getCurrentPrincipal() {
-                return caller;
+            public Optional<AuthenticatedUser> findAuthenticatedUser() {
+                return authenticatedUser;
             }
 
             @Override
-            public AuthenticatedPrincipal requireCurrentPrincipal() {
-                return caller.orElseThrow();
+            public AuthenticatedUser getAuthenticatedUser() {
+                return authenticatedUser.orElseThrow();
             }
         };
     }

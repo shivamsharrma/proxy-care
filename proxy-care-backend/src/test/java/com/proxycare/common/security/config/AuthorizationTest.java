@@ -57,8 +57,8 @@ class AuthorizationTest extends IntegrationTest {
 
     @Test
     void anotherUsersResourceIsNotFound() throws Exception {
-        var owner = UUID.randomUUID();
-        var thing = UUID.randomUUID();
+        UUID owner = UUID.randomUUID();
+        UUID thing = UUID.randomUUID();
         jdbcTemplate.update("insert into test_support.owned_things (id, user_id) values (?, ?)", thing, owner);
 
         mockMvc.perform(get("/api/v1/_probe/things/" + thing).header("Authorization", bearer(owner)))

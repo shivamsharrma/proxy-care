@@ -17,7 +17,7 @@ class OpenApiDocsTest extends IntegrationTest {
 
     @Test
     void everyOperationRequiresTheBearerToken() throws Exception {
-        var docs = apiDocs();
+        JsonNode docs = apiDocs();
         assertThat(docs.at("/components/securitySchemes/bearer/scheme").asString()).isEqualTo("bearer");
         assertThat(docs.at("/components/securitySchemes/bearer/bearerFormat").asString()).isEqualTo("JWT");
         assertThat(docs.at("/security/0").has("bearer")).isTrue();
@@ -25,18 +25,18 @@ class OpenApiDocsTest extends IntegrationTest {
 
     @Test
     void apiErrorSchemaMatchesTheApiErrorRecord() throws Exception {
-        var docs = apiDocs();
-        var apiError = schema(docs, ApiError.class.getSimpleName());
+        JsonNode docs = apiDocs();
+        JsonNode apiError = schema(docs, ApiError.class.getSimpleName());
         assertThat(propertyNames(apiError)).containsExactlyInAnyOrderElementsOf(recordFields(ApiError.class));
 
-        var meta = schema(docs, refName(apiError.at("/properties/meta/$ref")));
+        JsonNode meta = schema(docs, refName(apiError.at("/properties/meta/$ref")));
         assertThat(propertyNames(meta)).containsExactlyInAnyOrderElementsOf(recordFields(ResponseMeta.class));
         assertThat(meta.at("/properties/timestamp/format").asString()).isEqualTo("date-time");
     }
 
     @Test
     void everyOperationDocumentsApiErrorAsItsDefaultResponse() throws Exception {
-        var paths = apiDocs().get("paths");
+        JsonNode paths = apiDocs().get("paths");
         assertThat(paths.isEmpty()).isFalse();
         paths.forEach(path -> path.forEach(operation -> assertThat(
                         operation.at("/responses/default/content/application~1json/schema/$ref").asString())
@@ -44,12 +44,12 @@ class OpenApiDocsTest extends IntegrationTest {
     }
 
     private JsonNode apiDocs() throws Exception {
-        var body = mockMvc.perform(get("/v3/api-docs")).andReturn().getResponse().getContentAsString();
+        String body = mockMvc.perform(get("/v3/api-docs")).andReturn().getResponse().getContentAsString();
         return objectMapper.readTree(body);
     }
 
     private static JsonNode schema(JsonNode docs, String name) {
-        var schema = docs.at("/components/schemas/" + name);
+        JsonNode schema = docs.at("/components/schemas/" + name);
         assertThat(schema.isMissingNode()).as("schema %s", name).isFalse();
         return schema;
     }

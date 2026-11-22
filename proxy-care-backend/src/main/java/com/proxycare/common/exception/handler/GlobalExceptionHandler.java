@@ -56,21 +56,21 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleInvalidBody(MethodArgumentNotValidException ex) {
-        var fieldErrors = FieldErrors.from(
+        Map<String, String> fieldErrors = FieldErrors.from(
                 ex.getBindingResult().getFieldErrors().stream(), FieldError::getField, FieldError::getDefaultMessage);
         return respond(ErrorCode.VALIDATION_FAILED, VALIDATION_FAILED, fieldErrors);
     }
 
     @ExceptionHandler(HandlerMethodValidationException.class)
     public ResponseEntity<ApiError> handleInvalidParameters(HandlerMethodValidationException ex) {
-        var failures = ex.getParameterValidationResults().stream().flatMap(GlobalExceptionHandler::parameterFailures);
-        var fieldErrors = FieldErrors.from(failures, ParameterFailure::parameter, ParameterFailure::message);
+        Stream<ParameterFailure> parameterFailures = ex.getParameterValidationResults().stream().flatMap(GlobalExceptionHandler::parameterFailures);
+        Map<String, String> fieldErrors = FieldErrors.from(parameterFailures, ParameterFailure::parameter, ParameterFailure::message);
         return respond(ErrorCode.VALIDATION_FAILED, VALIDATION_FAILED, fieldErrors);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ApiError> handleConstraintViolation(ConstraintViolationException ex) {
-        var fieldErrors = FieldErrors.from(
+        Map<String, String> fieldErrors = FieldErrors.from(
                 ex.getConstraintViolations().stream(),
                 violation -> violation.getPropertyPath().toString(),
                 ConstraintViolation::getMessage);
@@ -146,13 +146,13 @@ public class GlobalExceptionHandler {
 
     /** Other Spring MVC client errors (missing header, not acceptable...) stay 4xx instead of becoming a 500. */
     private static boolean isSpringClientError(Exception ex) {
-        return ex instanceof ErrorResponse response && response.getStatusCode().is4xxClientError();
+        return ex instanceof ErrorResponse errorResponse && errorResponse.getStatusCode().is4xxClientError();
     }
 
-    private static Stream<ParameterFailure> parameterFailures(ParameterValidationResult result) {
+    private static Stream<ParameterFailure> parameterFailures(ParameterValidationResult parameterValidationResult) {
         String parameter = Objects.requireNonNullElse(
-                result.getMethodParameter().getParameterName(), UNNAMED_PARAMETER);
-        return result.getResolvableErrors().stream()
+                parameterValidationResult.getMethodParameter().getParameterName(), UNNAMED_PARAMETER);
+        return parameterValidationResult.getResolvableErrors().stream()
                 .map(error -> new ParameterFailure(parameter, error.getDefaultMessage()));
     }
 

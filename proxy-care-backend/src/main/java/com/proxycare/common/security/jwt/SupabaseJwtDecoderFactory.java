@@ -40,12 +40,12 @@ public final class SupabaseJwtDecoderFactory {
 
     /** Same rules with any key source; tests pass their own keys and the MutableClock. */
     public static JwtDecoder withKeys(JWKSource<SecurityContext> keys, JwtProperties properties, Clock clock) {
-        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSource(keys)
+        NimbusJwtDecoder nimbusJwtDecoder = NimbusJwtDecoder.withJwkSource(keys)
                 .jwsAlgorithms(SupabaseJwtDecoderFactory::allowAsymmetricAlgorithmsOnly)
                 .build();
 
-        decoder.setJwtValidator(tokenRules(properties, clock));
-        return decoder;
+        nimbusJwtDecoder.setJwtValidator(tokenRules(properties, clock));
+        return nimbusJwtDecoder;
     }
 
     /** ES256 is Supabase's default key type, RS256 its alternative. Never HS256 (a shared secret) or none. */
@@ -64,9 +64,9 @@ public final class SupabaseJwtDecoderFactory {
     }
 
     private static OAuth2TokenValidator<Jwt> notExpired(JwtProperties properties, Clock clock) {
-        JwtTimestampValidator validator = new JwtTimestampValidator(properties.clockSkew());
-        validator.setClock(clock);
-        return validator;
+        JwtTimestampValidator jwtTimestampValidator = new JwtTimestampValidator(properties.clockSkew());
+        jwtTimestampValidator.setClock(clock);
+        return jwtTimestampValidator;
     }
 
     private static OAuth2TokenValidator<Jwt> audienceIs(String expectedAudience) {

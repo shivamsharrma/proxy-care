@@ -11,18 +11,18 @@ import java.util.UUID;
 public interface ISecurityIdentityProvider {
 
     /** Empty on public endpoints and outside a request. */
-    Optional<AuthenticatedPrincipal> getCurrentPrincipal();
+    Optional<AuthenticatedUser> findAuthenticatedUser();
 
     /** The caller; throws UNAUTHENTICATED when there is none. */
-    AuthenticatedPrincipal requireCurrentPrincipal();
+    AuthenticatedUser getAuthenticatedUser();
 
-    default UUID requireCurrentUserId() {
-        return requireCurrentPrincipal().userId();
+    default UUID getAuthenticatedUserId() {
+        return getAuthenticatedUser().userId();
     }
 
     default boolean hasRole(Role role) {
-        return getCurrentPrincipal()
-                .map(principal -> principal.hasRole(role))
+        return findAuthenticatedUser()
+                .map(authenticatedUser -> authenticatedUser.hasRole(role))
                 .orElse(false);
     }
 

@@ -14,7 +14,7 @@ class TestDbProfileTest extends IntegrationTest {
 
     @Test
     void insertProfileCreatesAuthUserAndProfile() {
-        var id = UUID.randomUUID();
+        UUID id = UUID.randomUUID();
 
         testDb.insertProfile(id, "+919876543210", "USER", "CARETAKER");
 

@@ -14,17 +14,17 @@ import java.util.Optional;
 public class SpringSecurityIdentityProvider implements ISecurityIdentityProvider {
 
     @Override
-    public Optional<AuthenticatedPrincipal> getCurrentPrincipal() {
+    public Optional<AuthenticatedUser> findAuthenticatedUser() {
         return Optional.ofNullable(SecurityContextHolder.getContext().getAuthentication())
                 .filter(Authentication::isAuthenticated)
                 .map(Authentication::getPrincipal)
-                .filter(AuthenticatedPrincipal.class::isInstance)
-                .map(AuthenticatedPrincipal.class::cast);
+                .filter(AuthenticatedUser.class::isInstance)
+                .map(AuthenticatedUser.class::cast);
     }
 
     @Override
-    public AuthenticatedPrincipal requireCurrentPrincipal() {
-        return getCurrentPrincipal()
+    public AuthenticatedUser getAuthenticatedUser() {
+        return findAuthenticatedUser()
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED, SecurityMessages.UNAUTHENTICATED));
     }
 

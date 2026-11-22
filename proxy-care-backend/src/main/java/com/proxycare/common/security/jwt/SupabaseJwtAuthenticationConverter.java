@@ -2,7 +2,7 @@ package com.proxycare.common.security.jwt;
 
 import com.proxycare.common.security.authorization.Role;
 import com.proxycare.common.security.authorization.IUserRoleProvider;
-import com.proxycare.common.security.identity.AuthenticatedPrincipal;
+import com.proxycare.common.security.identity.AuthenticatedUser;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -15,7 +15,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Turns a verified Supabase token into an authentication whose principal is {@link AuthenticatedPrincipal}:
+ * Turns a verified Supabase token into an authentication whose principal is {@link AuthenticatedUser}:
  * identity from the token, roles from {@link IUserRoleProvider}.
  */
 @Component
@@ -33,13 +33,14 @@ public class SupabaseJwtAuthenticationConverter implements Converter<Jwt, Abstra
     public AbstractAuthenticationToken convert(Jwt jwt) {
         UUID userId = UUID.fromString(jwt.getSubject());
 
-        AuthenticatedPrincipal principal = new AuthenticatedPrincipal(
+        AuthenticatedUser authenticatedUser = new AuthenticatedUser(
                 userId,
                 jwt.getClaimAsString(PHONE_CLAIM),
                 userRoleProvider.findRoles(userId)
         );
 
-        return UsernamePasswordAuthenticationToken.authenticated(principal, jwt, toAuthorities(principal.roles()));
+        return UsernamePasswordAuthenticationToken.authenticated(
+                authenticatedUser, jwt, toAuthorities(authenticatedUser.roles()));
     }
 
     private static List<SimpleGrantedAuthority> toAuthorities(Set<Role> roles) {

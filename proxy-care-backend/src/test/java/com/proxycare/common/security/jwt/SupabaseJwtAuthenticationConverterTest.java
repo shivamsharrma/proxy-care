@@ -3,11 +3,12 @@ package com.proxycare.common.security.jwt;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.proxycare.common.security.authorization.Role;
-import com.proxycare.common.security.identity.AuthenticatedPrincipal;
+import com.proxycare.common.security.identity.AuthenticatedUser;
 import com.proxycare.support.IntegrationTest;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 
@@ -23,31 +24,31 @@ class SupabaseJwtAuthenticationConverterTest extends IntegrationTest {
     void mapsIdentityFromTheTokenAndRolesFromTheProfile() {
         testDb.insertProfile(userId, "+919876543210", "USER", "CARETAKER");
 
-        var auth = supabaseJwtAuthenticationConverter.convert(jwt(userId));
+        AbstractAuthenticationToken abstractAuthenticationToken = supabaseJwtAuthenticationConverter.convert(jwt(userId));
 
-        assertThat(auth.isAuthenticated()).isTrue();
-        assertThat(auth.getPrincipal()).isInstanceOfSatisfying(AuthenticatedPrincipal.class, principal -> {
-            assertThat(principal.userId()).isEqualTo(userId);
-            assertThat(principal.phone()).isEqualTo("919876543210");
-            assertThat(principal.roles()).containsExactlyInAnyOrder(Role.USER, Role.CARETAKER);
+        assertThat(abstractAuthenticationToken.isAuthenticated()).isTrue();
+        assertThat(abstractAuthenticationToken.getPrincipal()).isInstanceOfSatisfying(AuthenticatedUser.class, authenticatedUser -> {
+            assertThat(authenticatedUser.userId()).isEqualTo(userId);
+            assertThat(authenticatedUser.phone()).isEqualTo("919876543210");
+            assertThat(authenticatedUser.roles()).containsExactlyInAnyOrder(Role.USER, Role.CARETAKER);
         });
-        assertThat(auth.getAuthorities())
+        assertThat(abstractAuthenticationToken.getAuthorities())
                 .extracting(GrantedAuthority::getAuthority)
                 .containsExactlyInAnyOrder("ROLE_USER", "ROLE_CARETAKER");
     }
 
     @Test
     void userWithoutProfileIsAuthenticatedWithNoRoles() {
-        var auth = supabaseJwtAuthenticationConverter.convert(jwt(userId));
+        AbstractAuthenticationToken abstractAuthenticationToken = supabaseJwtAuthenticationConverter.convert(jwt(userId));
 
-        assertThat(auth.isAuthenticated()).isTrue();
-        assertThat(((AuthenticatedPrincipal) auth.getPrincipal()).roles()).isEmpty();
-        assertThat(auth.getAuthorities()).isEmpty();
+        assertThat(abstractAuthenticationToken.isAuthenticated()).isTrue();
+        assertThat(((AuthenticatedUser) abstractAuthenticationToken.getPrincipal()).roles()).isEmpty();
+        assertThat(abstractAuthenticationToken.getAuthorities()).isEmpty();
     }
 
     @Test
     void keepsTheJwtAsCredentials() {
-        var jwt = jwt(userId);
+        Jwt jwt = jwt(userId);
 
         assertThat(supabaseJwtAuthenticationConverter.convert(jwt).getCredentials()).isSameAs(jwt);
     }

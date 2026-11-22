@@ -4,7 +4,7 @@ import com.proxycare.common.exception.BusinessException;
 import com.proxycare.common.exception.ErrorCode;
 import com.proxycare.common.logging.MdcKeys;
 import com.proxycare.common.security.authorization.Role;
-import com.proxycare.common.security.identity.AuthenticatedPrincipal;
+import com.proxycare.common.security.identity.AuthenticatedUser;
 import com.proxycare.common.security.identity.ISecurityIdentityProvider;
 import java.util.UUID;
 import org.slf4j.MDC;
@@ -35,7 +35,7 @@ class AuthProbeController {
     @GetMapping("/whoami")
     WhoAmI whoami() {
         return new WhoAmI(
-                securityIdentityProvider.requireCurrentUserId(),
+                securityIdentityProvider.getAuthenticatedUserId(),
                 securityIdentityProvider.hasRole(Role.CARETAKER));
     }
 
@@ -53,12 +53,12 @@ class AuthProbeController {
 
     /** Ownership is part of the query; someone else's thing is simply not found (404, not 403). */
     @GetMapping("/things/{id}")
-    UUID thing(@PathVariable UUID id, @AuthenticationPrincipal AuthenticatedPrincipal me) {
+    UUID thing(@PathVariable UUID id, @AuthenticationPrincipal AuthenticatedUser authenticatedUser) {
         return jdbcTemplate.query(
                         "select id from test_support.owned_things where id = ? and user_id = ?",
                         (rs, i) -> rs.getObject(1, UUID.class),
                         id,
-                        me.userId())
+                        authenticatedUser.userId())
                 .stream()
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Thing not found."));

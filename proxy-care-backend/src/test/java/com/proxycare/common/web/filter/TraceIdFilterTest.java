@@ -14,6 +14,7 @@ import org.slf4j.MDC;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.mock.web.MockHttpServletResponse;
+import tools.jackson.databind.JsonNode;
 
 @ExtendWith(OutputCaptureExtension.class)
 class TraceIdFilterTest extends IntegrationTest {
@@ -41,7 +42,7 @@ class TraceIdFilterTest extends IntegrationTest {
     void clientSentIdIsNeverUsed(String header) throws Exception {
         String sent = UUID.randomUUID().toString();
 
-        var response = mockMvc.perform(get("/api/v1/_probe/items")
+        MockHttpServletResponse response = mockMvc.perform(get("/api/v1/_probe/items")
                         .header("Authorization", bearer(userId))
                         .header(header, sent))
                 .andReturn()
@@ -54,7 +55,7 @@ class TraceIdFilterTest extends IntegrationTest {
 
     @Test
     void injectionAttemptIsNotEchoed() throws Exception {
-        var response = mockMvc.perform(get("/api/v1/_probe/items")
+        MockHttpServletResponse response = mockMvc.perform(get("/api/v1/_probe/items")
                         .header("Authorization", bearer(userId))
                         .header(TraceIdFilter.TRACE_ID_HEADER, "abc\r\nSet-Cookie: evil=1"))
                 .andReturn()
@@ -66,7 +67,7 @@ class TraceIdFilterTest extends IntegrationTest {
 
     @Test
     void errorBodyTraceIdMatchesHeader() throws Exception {
-        var response = mockMvc.perform(get("/api/v1/_probe/not-found").header("Authorization", bearer(userId)))
+        MockHttpServletResponse response = mockMvc.perform(get("/api/v1/_probe/not-found").header("Authorization", bearer(userId)))
                 .andReturn()
                 .getResponse();
 
@@ -76,7 +77,7 @@ class TraceIdFilterTest extends IntegrationTest {
     /** The filter runs before Spring Security, so its 401s carry the trace ID too. */
     @Test
     void unauthenticatedErrorAlsoCarriesTheTraceId() throws Exception {
-        var response = mockMvc.perform(get("/api/v1/_probe/whoami")).andReturn().getResponse();
+        MockHttpServletResponse response = mockMvc.perform(get("/api/v1/_probe/whoami")).andReturn().getResponse();
 
         assertThat(response.getStatus()).isEqualTo(401);
         assertBodyTraceIdMatchesHeader(response);
@@ -106,7 +107,7 @@ class TraceIdFilterTest extends IntegrationTest {
     }
 
     private void assertBodyTraceIdMatchesHeader(MockHttpServletResponse response) throws Exception {
-        var body = objectMapper.readTree(response.getContentAsString());
+        JsonNode body = objectMapper.readTree(response.getContentAsString());
         assertThat(body.get("meta").get("traceId").asString())
                 .isEqualTo(response.getHeader(TraceIdFilter.TRACE_ID_HEADER));
     }
