@@ -1,5 +1,6 @@
 package com.proxycare.support;
 
+import com.proxycare.features.profile.enums.PreferredLanguage;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -38,6 +39,25 @@ public class TestDb {
                 id,
                 phone,
                 "{" + String.join(",", roles) + "}");
+    }
+
+    public void setPreferredLanguage(UUID profileId, PreferredLanguage preferredLanguage) {
+        jdbcTemplate.update(
+                "update profiles set preferred_language = ? where id = ?", preferredLanguage.name(), profileId);
+    }
+
+    /** The stored roles of a profile, in array order. */
+    public List<String> rolesOf(UUID profileId) {
+        return jdbcTemplate.queryForList("select unnest(roles)::text from profiles where id = ?", String.class, profileId);
+    }
+
+    public String phoneOf(UUID profileId) {
+        return jdbcTemplate.queryForObject("select phone from profiles where id = ?", String.class, profileId);
+    }
+
+    /** The stored enum name, e.g. "EN". */
+    public String preferredLanguageOf(UUID profileId) {
+        return jdbcTemplate.queryForObject("select preferred_language from profiles where id = ?", String.class, profileId);
     }
 
     /** Row count of a table; {@code table} is a literal from test code, e.g. "auth.users". */

@@ -1,7 +1,7 @@
 package com.proxycare.common.web.filter;
 
 import com.proxycare.common.logging.MdcKeys;
-import com.proxycare.common.security.identity.AuthenticatedPrincipal;
+import com.proxycare.common.security.identity.AuthenticatedUser;
 import com.proxycare.common.security.identity.ISecurityIdentityProvider;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -33,8 +33,8 @@ public class UserIdMdcFilter extends OncePerRequestFilter {
     }
 
     private void addUserIdToLogContext() {
-        securityIdentityProvider.getCurrentPrincipal()
-                .map(AuthenticatedPrincipal::userId)
+        securityIdentityProvider.findAuthenticatedUser()
+                .map(AuthenticatedUser::userId)
                 .ifPresent(userId -> MDC.put(MdcKeys.USER_ID, userId.toString()));
     }
 

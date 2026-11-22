@@ -12,6 +12,7 @@ import com.proxycare.support.MutableClock;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.ResultActions;
 
 class GlobalExceptionHandlerTest extends IntegrationTest {
 
@@ -19,7 +20,7 @@ class GlobalExceptionHandlerTest extends IntegrationTest {
 
     @Test
     void validationErrorListsTheField() throws Exception {
-        var result = mockMvc.perform(post("/api/v1/_probe/validated")
+        ResultActions result = mockMvc.perform(post("/api/v1/_probe/validated")
                 .header("Authorization", bearer(userId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"phone\":\"+919876543210\",\"otp\":\"123456\",\"age\":500}"));
@@ -31,7 +32,7 @@ class GlobalExceptionHandlerTest extends IntegrationTest {
 
     @Test
     void malformedJson() throws Exception {
-        var result = mockMvc.perform(post("/api/v1/_probe/validated")
+        ResultActions result = mockMvc.perform(post("/api/v1/_probe/validated")
                 .header("Authorization", bearer(userId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{not json"));
@@ -41,28 +42,28 @@ class GlobalExceptionHandlerTest extends IntegrationTest {
 
     @Test
     void appExceptionNotFound() throws Exception {
-        var result = mockMvc.perform(get("/api/v1/_probe/not-found").header("Authorization", bearer(userId)));
+        ResultActions result = mockMvc.perform(get("/api/v1/_probe/not-found").header("Authorization", bearer(userId)));
 
         assertApiError(result, 404, "RESOURCE_NOT_FOUND").andExpect(jsonPath("$.message").value("Thing not found."));
     }
 
     @Test
     void unknownApiPath() throws Exception {
-        var result = mockMvc.perform(get("/api/v1/does-not-exist").header("Authorization", bearer(userId)));
+        ResultActions result = mockMvc.perform(get("/api/v1/does-not-exist").header("Authorization", bearer(userId)));
 
         assertApiError(result, 404, "RESOURCE_NOT_FOUND");
     }
 
     @Test
     void wrongMethod() throws Exception {
-        var result = mockMvc.perform(delete("/api/v1/_probe/items").header("Authorization", bearer(userId)));
+        ResultActions result = mockMvc.perform(delete("/api/v1/_probe/items").header("Authorization", bearer(userId)));
 
         assertApiError(result, 400, "INVALID_PARAMETER");
     }
 
     @Test
     void unsupportedMediaType() throws Exception {
-        var result = mockMvc.perform(post("/api/v1/_probe/validated")
+        ResultActions result = mockMvc.perform(post("/api/v1/_probe/validated")
                 .header("Authorization", bearer(userId))
                 .contentType(MediaType.TEXT_PLAIN)
                 .content("hello"));
@@ -72,7 +73,7 @@ class GlobalExceptionHandlerTest extends IntegrationTest {
 
     @Test
     void timestampComesFromTheClock() throws Exception {
-        var result = mockMvc.perform(get("/api/v1/_probe/not-found").header("Authorization", bearer(userId)));
+        ResultActions result = mockMvc.perform(get("/api/v1/_probe/not-found").header("Authorization", bearer(userId)));
 
         assertApiError(result, 404, "RESOURCE_NOT_FOUND")
                 .andExpect(jsonPath("$.meta.timestamp").value(MutableClock.DEFAULT_INSTANT.toString()));
@@ -80,7 +81,7 @@ class GlobalExceptionHandlerTest extends IntegrationTest {
 
     @Test
     void bodyOverOneMegabyte() throws Exception {
-        var result = mockMvc.perform(post("/api/v1/_probe/validated")
+        ResultActions result = mockMvc.perform(post("/api/v1/_probe/validated")
                 .header("Authorization", bearer(userId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(new byte[1024 * 1024 + 1]));
@@ -90,9 +91,9 @@ class GlobalExceptionHandlerTest extends IntegrationTest {
 
     @Test
     void unexpectedExceptionHidesInternals() throws Exception {
-        var result = mockMvc.perform(get("/api/v1/_probe/boom").header("Authorization", bearer(userId)));
+        ResultActions result = mockMvc.perform(get("/api/v1/_probe/boom").header("Authorization", bearer(userId)));
 
-        var body = assertApiError(result, 500, "INTERNAL_ERROR")
+        String body = assertApiError(result, 500, "INTERNAL_ERROR")
                 .andReturn()
                 .getResponse()
                 .getContentAsString();

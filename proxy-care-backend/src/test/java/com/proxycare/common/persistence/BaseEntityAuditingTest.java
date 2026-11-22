@@ -18,7 +18,7 @@ class BaseEntityAuditingTest extends IntegrationTest {
 
     @Test
     void saveSetsIdTimestampsAndVersion() {
-        var saved = auditedThingRepository.save(new AuditedThing("a"));
+        AuditedThing saved = auditedThingRepository.save(new AuditedThing("a"));
 
         assertThat(saved.getId()).isNotNull();
         assertThat(saved.getCreatedAt().toInstant()).isEqualTo(MutableClock.DEFAULT_INSTANT);
@@ -29,12 +29,12 @@ class BaseEntityAuditingTest extends IntegrationTest {
 
     @Test
     void updateBumpsUpdatedAtAndVersion() {
-        var saved = auditedThingRepository.save(new AuditedThing("a"));
+        AuditedThing saved = auditedThingRepository.save(new AuditedThing("a"));
         mutableClock.advance(Duration.ofMinutes(5));
 
-        var loaded = auditedThingRepository.findById(saved.getId()).orElseThrow();
+        AuditedThing loaded = auditedThingRepository.findById(saved.getId()).orElseThrow();
         loaded.setName("b");
-        var updated = auditedThingRepository.save(loaded);
+        AuditedThing updated = auditedThingRepository.save(loaded);
 
         assertThat(updated.getCreatedAt().toInstant()).isEqualTo(MutableClock.DEFAULT_INSTANT);
         assertThat(updated.getUpdatedAt().toInstant()).isEqualTo(MutableClock.DEFAULT_INSTANT.plus(Duration.ofMinutes(5)));
@@ -43,8 +43,8 @@ class BaseEntityAuditingTest extends IntegrationTest {
 
     @Test
     void staleVersionUpdateIsRejected() {
-        var stale = auditedThingRepository.save(new AuditedThing("a"));
-        var fresh = auditedThingRepository.findById(stale.getId()).orElseThrow();
+        AuditedThing stale = auditedThingRepository.save(new AuditedThing("a"));
+        AuditedThing fresh = auditedThingRepository.findById(stale.getId()).orElseThrow();
         fresh.setName("b");
         auditedThingRepository.save(fresh);
 

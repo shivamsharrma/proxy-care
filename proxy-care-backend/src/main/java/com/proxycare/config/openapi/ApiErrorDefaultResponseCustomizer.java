@@ -22,8 +22,9 @@ class ApiErrorDefaultResponseCustomizer implements OpenApiCustomizer {
     @Override
     public void customise(OpenAPI api) {
         addApiErrorSchemas(api);
-        var error = errorResponse();
-        api.getPaths().values().forEach(path -> path.readOperations().forEach(op -> addDefault(op, error)));
+        ApiResponse apiResponse = errorResponse();
+        api.getPaths().values().forEach(pathItem -> pathItem.readOperations()
+                .forEach(operation -> addDefault(operation, apiResponse)));
     }
 
     private static void addApiErrorSchemas(OpenAPI api) {
@@ -33,13 +34,13 @@ class ApiErrorDefaultResponseCustomizer implements OpenApiCustomizer {
     }
 
     private static ApiResponse errorResponse() {
-        var json = new MediaType().schema(new Schema<>().$ref(SCHEMA_REF));
+        MediaType mediaType = new MediaType().schema(new Schema<>().$ref(SCHEMA_REF));
         return new ApiResponse()
                 .description("Error")
-                .content(new Content().addMediaType("application/json", json));
+                .content(new Content().addMediaType("application/json", mediaType));
     }
 
-    private static void addDefault(Operation operation, ApiResponse error) {
-        operation.getResponses().addApiResponse("default", error);
+    private static void addDefault(Operation operation, ApiResponse apiResponse) {
+        operation.getResponses().addApiResponse("default", apiResponse);
     }
 }

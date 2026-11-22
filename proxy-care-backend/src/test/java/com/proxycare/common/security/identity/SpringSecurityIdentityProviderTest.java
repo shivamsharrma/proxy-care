@@ -27,36 +27,37 @@ class SpringSecurityIdentityProviderTest {
     }
 
     @Test
-    void returnsThePrincipalOfTheAuthenticatedCaller() {
-        var principal = new AuthenticatedPrincipal(userId, "+919876543210", EnumSet.of(Role.CARETAKER));
+    void returnsTheAuthenticatedUser() {
+        AuthenticatedUser authenticatedUser = new AuthenticatedUser(userId, "+919876543210", EnumSet.of(Role.CARETAKER));
         SecurityContextHolder.getContext()
-                .setAuthentication(UsernamePasswordAuthenticationToken.authenticated(principal, null, List.of()));
+                .setAuthentication(UsernamePasswordAuthenticationToken.authenticated(authenticatedUser, null, List.of()));
 
-        assertThat(springSecurityIdentityProvider.getCurrentPrincipal()).contains(principal);
-        assertThat(springSecurityIdentityProvider.requireCurrentUserId()).isEqualTo(userId);
+        assertThat(springSecurityIdentityProvider.findAuthenticatedUser()).contains(authenticatedUser);
+        assertThat(springSecurityIdentityProvider.getAuthenticatedUser()).isEqualTo(authenticatedUser);
+        assertThat(springSecurityIdentityProvider.getAuthenticatedUserId()).isEqualTo(userId);
         assertThat(springSecurityIdentityProvider.hasRole(Role.CARETAKER)).isTrue();
         assertThat(springSecurityIdentityProvider.hasRole(Role.ADMIN)).isFalse();
     }
 
     @Test
     void emptyWithoutAuthentication() {
-        assertThat(springSecurityIdentityProvider.getCurrentPrincipal()).isEmpty();
+        assertThat(springSecurityIdentityProvider.findAuthenticatedUser()).isEmpty();
         assertThat(springSecurityIdentityProvider.hasRole(Role.USER)).isFalse();
     }
 
     @Test
-    void anonymousCallerIsNotAPrincipal() {
+    void anonymousCallerIsNotAnAuthenticatedUser() {
         SecurityContextHolder.getContext().setAuthentication(new AnonymousAuthenticationToken(
                 "key", "anonymousUser", List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS"))));
 
-        assertThat(springSecurityIdentityProvider.getCurrentPrincipal()).isEmpty();
+        assertThat(springSecurityIdentityProvider.findAuthenticatedUser()).isEmpty();
     }
 
     @Test
-    void requireThrowsUnauthenticatedWithoutACaller() {
-        assertThatThrownBy(springSecurityIdentityProvider::requireCurrentPrincipal)
+    void getThrowsUnauthenticatedWithoutACaller() {
+        assertThatThrownBy(springSecurityIdentityProvider::getAuthenticatedUser)
                 .isInstanceOf(BusinessException.class)
-                .extracting(e -> ((BusinessException) e).getErrorCode())
+                .extracting(exception -> ((BusinessException) exception).getErrorCode())
                 .isEqualTo(ErrorCode.UNAUTHENTICATED);
     }
 }

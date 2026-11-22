@@ -36,7 +36,7 @@ class ProdProfileTest extends IntegrationTest {
 
     @Test
     void swaggerAndApiDocsAreDisabled() throws Exception {
-        try (var app = start(List.of(SUPABASE_URL))) {
+        try (ConfigurableApplicationContext app = start(List.of(SUPABASE_URL))) {
             assertThat(get(app, "/v3/api-docs")).isEqualTo(404);
             assertThat(get(app, "/swagger-ui/index.html")).isEqualTo(404);
         }
@@ -54,13 +54,13 @@ class ProdProfileTest extends IntegrationTest {
     /** Vendor keys (Razorpay, Google, Uber) are optional until their features are built. */
     @Test
     void startupSucceedsWithoutVendorKeys() {
-        try (var app = start(List.of(SUPABASE_URL))) {
+        try (ConfigurableApplicationContext app = start(List.of(SUPABASE_URL))) {
             assertThat(app.isRunning()).isTrue();
         }
     }
 
     private ConfigurableApplicationContext start(List<String> extraArgs) {
-        var args = new ArrayList<>(List.of(
+        List<String> args = new ArrayList<>(List.of(
                 "--DB_URL=" + postgreSQLContainer.getJdbcUrl(),
                 "--DB_USER=" + postgreSQLContainer.getUsername(),
                 "--DB_PASSWORD=" + postgreSQLContainer.getPassword(),
@@ -77,8 +77,8 @@ class ProdProfileTest extends IntegrationTest {
 
     private static int get(ConfigurableApplicationContext app, String path) throws Exception {
         int port = ((WebServerApplicationContext) app).getWebServer().getPort();
-        try (var http = HttpClient.newHttpClient()) {
-            var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path)).build();
+        try (HttpClient http = HttpClient.newHttpClient()) {
+            HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path)).build();
             return http.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
         }
     }

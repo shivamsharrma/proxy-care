@@ -73,7 +73,7 @@ class RequestLoggingFilterTest extends IntegrationTest {
     }
 
     private static long accessLines(CapturedOutput output, String methodPathStatus) {
-        var line = Pattern.compile(Pattern.quote(methodPathStatus) + " \\d+ms");
+        Pattern line = Pattern.compile(Pattern.quote(methodPathStatus) + " \\d+ms");
         return output.getOut().lines().filter(l -> line.matcher(l).find()).count();
     }
 

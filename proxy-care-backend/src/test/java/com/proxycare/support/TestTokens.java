@@ -113,7 +113,7 @@ public class TestTokens {
 
         public String build() {
             Instant iat = expired ? clock.instant().minus(Duration.ofHours(2)) : clock.instant();
-            var claims = new JWTClaimsSet.Builder()
+            JWTClaimsSet claims = new JWTClaimsSet.Builder()
                     .subject(subject)
                     .claim("phone", phone)
                     .claim("role", "authenticated")
@@ -132,11 +132,11 @@ public class TestTokens {
                     signer = new RSASSASigner(RSA_KEY);
                     header = new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(RSA_KEY.getKeyID()).build();
                 } else {
-                    var key = otherKey ? OTHER_EC_KEY : EC_KEY;
+                    ECKey key = otherKey ? OTHER_EC_KEY : EC_KEY;
                     signer = new ECDSASigner(key);
                     header = new JWSHeader.Builder(JWSAlgorithm.ES256).keyID(key.getKeyID()).build();
                 }
-                var jwt = new SignedJWT(header, claims);
+                SignedJWT jwt = new SignedJWT(header, claims);
                 jwt.sign(signer);
                 return jwt.serialize();
             } catch (JOSEException e) {

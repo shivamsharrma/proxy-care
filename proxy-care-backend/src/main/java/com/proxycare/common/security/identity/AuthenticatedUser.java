@@ -13,13 +13,13 @@ import java.util.UUID;
  * @param phone  the token's {@code phone} claim; personal data, never log it
  * @param roles  empty until the user has a profile (still onboarding)
  */
-public record AuthenticatedPrincipal(
+public record AuthenticatedUser(
         UUID userId,
         String phone,
         Set<Role> roles
 ) {
 
-    public AuthenticatedPrincipal {
+    public AuthenticatedUser {
         Objects.requireNonNull(userId, "userId");
         roles = roles == null ? Set.of() : Set.copyOf(roles);
     }

@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.BadJwtException;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 
 /** The token rules in isolation, without Spring or HTTP. */
@@ -29,7 +30,7 @@ class SupabaseJwtDecoderFactoryTest {
 
     @Test
     void validTokenDecodes() {
-        var jwt = jwtDecoder.decode(testTokens.forUser(userId, PHONE));
+        Jwt jwt = jwtDecoder.decode(testTokens.forUser(userId, PHONE));
 
         assertThat(jwt.getSubject()).isEqualTo(userId.toString());
     }
