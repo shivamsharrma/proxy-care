@@ -25,7 +25,17 @@ or event (`security.md` → PII).
 - Controller → `I<Feature>Service` → `<Feature>Service` → repository.
   Controllers do HTTP only; entities never leave the service.
 - Request/response bodies are records in `dto/`; responses are never entities.
-  Validate requests with `jakarta.validation`.
+  Validate requests with `jakarta.validation`. A field with a fixed set of
+  values is an enum (`@NotNull Role role`, `@NotNull PreferredLanguage
+  preferredLanguage`), never a `String` + `@Pattern`.
+- Service methods return the response DTO (`ProfileResponse`), never a
+  result wrapper; controller methods return that DTO directly (200), no
+  `ResponseEntity` unless the spec asks for another status.
+- Create-or-update of the caller's own resource is one `PUT` endpoint
+  (`PUT /api/v1/profile/me`), not separate create and update endpoints.
+  The service reads as one flow: find the entity or build a new one, apply
+  the request through setters, save, map
+  (`ProfileService.updateCurrentProfile`).
 - Mappers are `@Component`s with `to<Dto>(…)` methods (`ProfileMapper`).
 - Features talk to each other through a service interface or events
   (`backend-events.md`), never through another feature's repository or tables.
@@ -34,9 +44,22 @@ or event (`security.md` → PII).
 ## Entities
 - Extend `common/persistence/BaseEntity` (UUID id, audit timestamps from the
   `Clock`, `@Version`). Exception: ids that come from `auth.users` (see
-  `ProfileEntity`, with the reason in a comment).
-- `@Getter`, `@NoArgsConstructor(access = PROTECTED)`; no public setters.
-  Enums `@Enumerated(STRING)`.
+  `ProfileEntity`, with the reason in a comment); such an entity still
+  declares `@EntityListeners(AuditingEntityListener.class)`, `@CreatedDate
+  createdAt` and `@Version version` itself.
+- Entities are plain data holders: `@Getter`, `@Setter`, `@NoArgsConstructor`.
+  No factory methods, mutators (`addRole`, `changeX`) or other create/update
+  logic in an entity; the service builds and changes it through setters.
+  Fields the framework owns (`createdAt`, `version`) get
+  `@Setter(AccessLevel.NONE)`.
+- Timestamps come from auditing (`@CreatedDate` / `@LastModifiedDate`, the
+  `Clock`), never from a database default.
+- Enums are `@Enumerated(STRING)` and stored and sent in JSON by their names
+  (`EN`, `HI`): no converters, codes or `@JsonValue`.
+- Concurrency: `@Version` optimistic locking only (a conflict becomes 409
+  `CONCURRENT_MODIFICATION` via `GlobalExceptionHandler`). No pessimistic
+  `@Lock` lookups, retry loops, `TransactionTemplate` or `Persistable`/`isNew`
+  unless a spec scenario needs them.
 
 ## API
 - REST under `/api/v1`, kebab-case paths, camelCase JSON fields.
@@ -58,8 +81,10 @@ or event (`security.md` → PII).
 
 ## Identity and authorization
 Principle in `security.md` → Never trust the client; roles in `auth-and-rls.md`. In code:
-- `securityIdentityProvider.requireCurrentUserId()` in the service, never an
-  id from a path, query or body field.
+- The caller comes from `securityIdentityProvider.getAuthenticatedUser()`
+  (`AuthenticatedUser`: `userId`, `phone`, `roles`) or
+  `getAuthenticatedUserId()` in the service, never an id from a path, query
+  or body field.
 - Scope repository lookups by the owner (`findByIdAndSponsorId(...)`) so a
   non-owner gets the feature's not-found `ErrorCode` (404).
 - Role checks via `hasRole(...)` / method security, in addition to ownership.
@@ -81,12 +106,23 @@ Principle in `security.md` → Never trust the client; roles in `auth-and-rls.md
   explicit `SecurityConfig` change with a `PathAccessTest` case.
 
 ## Code style
+- Never `var`; always declare the exact type (main and test code).
 - Constructor injection via Lombok `@RequiredArgsConstructor` + `private final`.
 - Interfaces are `I`-prefixed (`IProfileService`); fields and parameters are
   named after the type without the prefix (`profileService`,
-  `securityIdentityProvider`, `jdbcTemplate`).
-- Small methods whose names say what they do, guard clauses over nesting,
-  named constants and conditions. Comments and Javadoc explain why.
+  `securityIdentityProvider`, `jdbcTemplate`). Local variables too:
+  `ProfileEntity profileEntity`, `AuthenticatedUser authenticatedUser`,
+  `ProfileUpdateRequest profileUpdateRequest`, never `result` / `status` /
+  `request` / `saved`.
+- Method names say exactly what they do (`buildProfileEntityWithoutRoles`,
+  `toE164Phone`, `getAuthenticatedUser`), not `newX` / `normalized` / `handle`.
+- Keep the public service method a short linear flow a reader follows top
+  to bottom. Extract a helper only when it names a real concept; don't split
+  one flow into several methods passing the same arguments around.
+  Guard clauses over nesting; named constants.
+- Comments only for a non-obvious why (a Hibernate quirk, an external
+  format). No Javadoc that restates the method name or code; a contract is
+  documented once, on the interface, not repeated on the impl or controller.
 
 ## Logging
 - MDC keys only from `common/logging/MdcKeys` (`traceId`, `userId`).

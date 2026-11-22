@@ -16,9 +16,16 @@ also load `supabase:supabase-postgres-best-practices` if available.
    - columns matching `BaseEntity`: `id uuid primary key`,
      `created_at timestamptz not null`, `updated_at timestamptz not null`,
      `version bigint not null` (ids from Supabase reference `auth.users (id)`
-     instead, like `profiles`);
+     instead, like `profiles`, which still has `created_at` and `version`);
+     adding `version` to an existing table: `bigint not null default 0`;
+   - `created_at` / `updated_at` are written by JPA auditing; don't rely on a
+     column default for them;
    - money as `bigint` paise; statuses as `text` + `check (... in (...))` or
      a Postgres enum whose values equal the Java enum names;
+   - Java enums mapped with `@Enumerated(STRING)` are stored as their names
+     (`EN`, not `en`); changing an existing column's values to names needs an
+     `update ... set col = upper(col)` and a new default, like
+     `V4__profiles_preferred_language_enum_names.sql`;
    - foreign keys with an explicit `on delete`; an index on every FK and on
      the owner columns services filter by (`sponsor_id`, `caretaker_id`);
    - `alter table <t> enable row level security;` with the deny-all comment
