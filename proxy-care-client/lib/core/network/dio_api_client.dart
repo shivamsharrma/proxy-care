@@ -31,14 +31,12 @@ final class DioApiClient implements ApiClient {
     String path, {
     required JsonDecoder<T> decode,
     Map<String, Object?>? query,
-    ResponseFormat format = ResponseFormat.envelope,
     ApiRequestOptions options = const ApiRequestOptions(),
   }) => _send(
     'GET',
     path,
     decode: decode,
     query: query,
-    format: format,
     options: options,
   );
 
@@ -48,7 +46,6 @@ final class DioApiClient implements ApiClient {
     required JsonDecoder<T> decode,
     Object? body,
     Map<String, Object?>? query,
-    ResponseFormat format = ResponseFormat.envelope,
     ApiRequestOptions options = const ApiRequestOptions(),
   }) => _send(
     'POST',
@@ -56,7 +53,6 @@ final class DioApiClient implements ApiClient {
     decode: decode,
     body: body,
     query: query,
-    format: format,
     options: options,
   );
 
@@ -66,7 +62,6 @@ final class DioApiClient implements ApiClient {
     required JsonDecoder<T> decode,
     Object? body,
     Map<String, Object?>? query,
-    ResponseFormat format = ResponseFormat.envelope,
     ApiRequestOptions options = const ApiRequestOptions(),
   }) => _send(
     'PUT',
@@ -74,7 +69,6 @@ final class DioApiClient implements ApiClient {
     decode: decode,
     body: body,
     query: query,
-    format: format,
     options: options,
   );
 
@@ -84,7 +78,6 @@ final class DioApiClient implements ApiClient {
     required JsonDecoder<T> decode,
     Object? body,
     Map<String, Object?>? query,
-    ResponseFormat format = ResponseFormat.envelope,
     ApiRequestOptions options = const ApiRequestOptions(),
   }) => _send(
     'PATCH',
@@ -92,7 +85,6 @@ final class DioApiClient implements ApiClient {
     decode: decode,
     body: body,
     query: query,
-    format: format,
     options: options,
   );
 
@@ -102,7 +94,6 @@ final class DioApiClient implements ApiClient {
     required JsonDecoder<T> decode,
     Object? body,
     Map<String, Object?>? query,
-    ResponseFormat format = ResponseFormat.envelope,
     ApiRequestOptions options = const ApiRequestOptions(),
   }) => _send(
     'DELETE',
@@ -110,7 +101,6 @@ final class DioApiClient implements ApiClient {
     decode: decode,
     body: body,
     query: query,
-    format: format,
     options: options,
   );
 
@@ -121,7 +111,6 @@ final class DioApiClient implements ApiClient {
     required JsonDecoder<T> decode,
     Map<String, String> fields = const {},
     String method = 'POST',
-    ResponseFormat format = ResponseFormat.envelope,
     ApiRequestOptions options = const ApiRequestOptions(),
     TransferProgress? onProgress,
   }) {
@@ -145,7 +134,6 @@ final class DioApiClient implements ApiClient {
       path,
       decode: decode,
       body: form,
-      format: format,
       options: options,
       onSendProgress: onProgress,
     );
@@ -178,7 +166,6 @@ final class DioApiClient implements ApiClient {
     String method,
     String path, {
     required JsonDecoder<T> decode,
-    required ResponseFormat format,
     required ApiRequestOptions options,
     Object? body,
     Map<String, Object?>? query,
@@ -196,7 +183,6 @@ final class DioApiClient implements ApiClient {
       response.data,
       decode,
       statusCode: response.statusCode ?? 200,
-      format: format,
       headers: response.headers.map,
     );
   }

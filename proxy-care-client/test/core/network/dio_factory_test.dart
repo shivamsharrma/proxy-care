@@ -13,6 +13,7 @@ import 'package:proxy_care_client/core/network/interceptors/logging_interceptor.
 import 'package:proxy_care_client/core/network/interceptors/retry_interceptor.dart';
 
 import '../../fixtures/env_fixtures.dart';
+import '../../helpers/backend_api_error.dart';
 import '../../helpers/fake_http_adapter.dart';
 import '../../helpers/network_harness.dart';
 import '../../helpers/provider_container.dart';
@@ -64,7 +65,7 @@ void main() {
       expect(options.responseType, ResponseType.json);
       expect(
         options.headers['Accept'],
-        'application/json, application/problem+json',
+        'application/json',
       );
     });
 
@@ -80,8 +81,8 @@ void main() {
     test('resource paths resolve under /api/v1', () async {
       final harness = NetworkHarness(
         responses: [
-          respondJson(dataBody(null)),
-          respondJson(dataBody(null)),
+          respondJson(const <String, Object?>{}),
+          respondJson(const <String, Object?>{}),
         ],
       );
 
@@ -155,7 +156,7 @@ void main() {
       () async {
         final harness = NetworkHarness(
           tokens: FakeTokens(token: 'access-1'),
-          responses: [respondJson(dataBody(null))],
+          responses: [respondJson(const <String, Object?>{})],
         );
 
         await harness.client.get('/me', decode: ignoreBody);
@@ -171,8 +172,8 @@ void main() {
       final harness = NetworkHarness(
         tokens: FakeTokens(token: 'old', recovered: 'new'),
         responses: [
-          respondProblem('UNAUTHENTICATED', status: 401),
-          respondJson(dataBody(null)),
+          respondApiError('UNAUTHENTICATED', status: 401),
+          respondJson(const <String, Object?>{}),
         ],
       );
 
@@ -188,8 +189,8 @@ void main() {
     test('is switched off for bodiless requests', () async {
       final harness = NetworkHarness(
         responses: [
-          respondJson(dataBody(null)),
-          respondJson(dataBody(null)),
+          respondJson(const <String, Object?>{}),
+          respondJson(const <String, Object?>{}),
         ],
       );
 

@@ -36,7 +36,9 @@ packages: add one only when these cannot express a test.
 | --- | --- |
 | A configured container | `createTestContainer(env:, variant:, overrides:)` (`helpers/provider_container.dart`): wired like the app (variant defaults to the User app), disposed after the test |
 | Test configuration | `testEnv(...)` (`fixtures/env_fixtures.dart`): a valid development `Env`; override only what the test cares about |
-| HTTP responses | `FakeHttpAdapter` with `respondJson`, `dataBody`, `pageMeta`, `respondProblem`, `problemBody`, `fieldError`; it records every attempt (`requests`) |
+| HTTP responses | `FakeHttpAdapter` with `respondJson` (bare JSON bodies); it records every attempt (`requests`) |
+| Backend errors | `apiErrorBody`, `respondApiError`, `testTraceId` (`helpers/backend_api_error.dart`): an `ApiError` body exactly as the backend sends it |
+| Decoding fixtures | `TestItem` (a minimal decodable item) and `throwsInvalidResponse` (`helpers/decoding_fixtures.dart`) |
 | The networking stack | `NetworkHarness` (`helpers/network_harness.dart`) |
 | Token storage | `FakeSecureKeyValueStore` (`helpers/auth_fakes.dart`), with switchable read, write and delete failures |
 | A session | `FakeAuthenticationSession` (`emit`, `token`, `tokenAfterRefresh`, `refreshes`), `MockGoTrueClient`, `fakeSession`, `fakeJwt` |

@@ -76,13 +76,15 @@ final class ApiRequestOptions {
 
   /// Sent as the `Idempotency-Key` header. Generate one per logical
   /// operation (`IdempotencyKey.generate()`) and reuse it when the user
-  /// repeats the same operation.
+  /// repeats the same operation. Not enforced by the backend today (no
+  /// Idempotency-Key filter).
   final String? idempotencyKey;
 
   /// Sent as the `If-Match` header: the `ETag` of the version being
   /// updated (`ApiResponse.etag` from the read, stored unchanged), or `*`.
-  /// Updates to versioned resources require it (ADR 0012): without it the
-  /// backend answers 428, with a stale one 412.
+  /// Not enforced by the backend today: it sends no `ETag`, reads no
+  /// `If-Match`, and reports a version clash as 409
+  /// `CONCURRENT_MODIFICATION`.
   final String? ifMatch;
 
   /// Sends the request without an access token and keeps
