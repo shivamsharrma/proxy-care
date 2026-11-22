@@ -243,7 +243,9 @@ final class VisitsRoutes extends RouteModule {
 }
 ```
 
-Add `VisitsRoutes()` to `appRouteModules` in `lib/app_routes.dart`. Link
+Add `VisitsRoutes()` to one list in `lib/app_routes.dart`:
+`_sharedRouteModules` (both apps), `_userRouteModules` or
+`_caretakerRouteModules` (one app only). Link
 with `VisitRoutes.detail.location(pathParameters: {'visitId': id})`;
 identity in the path, extras optional. Notification types the feature
 handles go in `notificationRoutes` (`'visits.updated'`). Conventions:

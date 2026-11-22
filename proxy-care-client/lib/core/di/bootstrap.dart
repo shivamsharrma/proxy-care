@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 
+import '../config/app_variant.dart';
 import '../config/env.dart';
 import '../error/error_widget_builder.dart';
 import '../error/global_error_handlers.dart';
@@ -19,7 +20,8 @@ import 'platform_providers.dart';
 /// 1. Initialize Flutter bindings.
 /// 2. Read and validate the environment configuration. An invalid build
 ///    throws `EnvConfigException` here, before anything else starts.
-/// 3. Create the Riverpod container, which wires the infrastructure.
+/// 3. Create the Riverpod container for the [variant] app, which wires the
+///    infrastructure.
 /// 4. Route uncaught framework and platform errors to the `ErrorReporter`,
 ///    and keep error details out of failed widgets outside debug builds.
 /// 5. Register the bundled fonts' licences.
@@ -27,19 +29,25 @@ import 'platform_providers.dart';
 /// 7. Load date formatting data, and start the services that follow the
 ///    session: per-user cleanup and push notifications.
 ///
-/// [overrides] are added to the container; the app uses them to register
-/// the features' route modules (see `lib/app_routes.dart`).
+/// [variant] is the app this build is (`AppVariant.fromEnvironment` in
+/// `main.dart`). [overrides] are added to the container; the app uses them
+/// to register the features' route modules (see `lib/app_routes.dart`).
 ///
 /// Run it inside `runGuardedZone` (see `main.dart`) so the binding and the
 /// app share the zone that catches asynchronous errors.
 ///
 Future<ProviderContainer> bootstrap({
+  required AppVariant variant,
   List<Override> overrides = const [],
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final env = Env.fromEnvironment();
-  final container = createAppContainer(env: env, overrides: overrides);
+  final container = createAppContainer(
+    env: env,
+    variant: variant,
+    overrides: overrides,
+  );
 
   installGlobalErrorHandlers(container.read(errorReporterProvider));
   installErrorWidgetBuilder();

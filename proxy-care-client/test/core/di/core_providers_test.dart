@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderException;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:proxy_care_client/core/config/app_variant.dart';
 import 'package:proxy_care_client/core/di/core_providers.dart';
 import 'package:proxy_care_client/core/error/logger_error_reporter.dart';
 import 'package:proxy_care_client/core/logging/app_logger.dart';
@@ -65,4 +67,38 @@ void main() {
     expect(entry.fields, {'context': 'test'});
     expect(entry.error, same(error));
   });
+
+  test('createAppContainer provides the given variant', () {
+    final container = createTestContainer(variant: AppVariant.caretaker);
+
+    expect(container.read(appVariantProvider), AppVariant.caretaker);
+  });
+
+  test('appVariantProvider has no usable default and must be overridden', () {
+    // `flutter test` runs without APP_VARIANT, so there is no variant to use.
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    expect(
+      () => container.read(appVariantProvider),
+      throwsA(
+        isA<ProviderException>().having(
+          (error) => error.exception,
+          'exception',
+          isA<UnimplementedError>(),
+        ),
+      ),
+    );
+  });
+
+  for (final variant in AppVariant.values) {
+    test(
+      'appVariantProvider provides the overridden ${variant.name} variant',
+      () {
+        final container = createTestContainer(variant: variant);
+
+        expect(container.read(appVariantProvider), variant);
+      },
+    );
+  }
 }

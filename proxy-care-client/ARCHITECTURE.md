@@ -235,6 +235,9 @@ class ProfileController extends AsyncNotifier<Profile> {
   which is why it is created outside the widget tree.
 - `envProvider` has **no default**: `createAppContainer` overrides it with
   the validated `Env`. Reading it without an override throws.
+- `appVariantProvider` has **no default** either: `createAppContainer`
+  overrides it with the build's `AppVariant`, `createTestContainer` defaults
+  it to `AppVariant.user`, and a `ProviderScope` test must override it.
 - Tests build the same container with `createTestContainer` (in
   `test/helpers/`), which calls `createAppContainer`, adds overrides and
   disposes the container after the test. Widget tests use
@@ -606,16 +609,20 @@ and [docs/deep-linking.md](docs/deep-linking.md).
 2. `Env.fromEnvironment()` reads and validates the `--dart-define` values.
    An invalid configuration throws `EnvConfigException` before anything
    else starts.
-3. `createAppContainer(env:)` creates the root `ProviderContainer`, with
-   `envProvider` overridden. Infrastructure providers build lazily from it.
+3. `createAppContainer(env:, variant:)` creates the root
+   `ProviderContainer`, with `envProvider` and `appVariantProvider`
+   overridden (`main` reads the variant with `AppVariant.fromEnvironment()`
+   and passes it to `bootstrap(variant:)`). Infrastructure providers build lazily from it.
 4. `installGlobalErrorHandlers(...)` sends `FlutterError.onError` and
    `PlatformDispatcher.onError` to the `ErrorReporter` (logger by default;
    override `errorReporterProvider` for a crash-reporting service), and
    `installErrorWidgetBuilder()` keeps error details out of failed widgets
    outside debug builds.
 5. `main` passes `routeModulesProvider.overrideWith(...)`, built from
-   `enabledRouteModules(env)` (the feature modules plus, when enabled, the
-   development-only widget showcase), to `bootstrap(overrides:)` and runs
+   `routeModulesFor(variant, env)` (the shared feature modules, those of the
+   variant's app, plus the development-only modules of
+   `enabledRouteModules(env)` such as the widget showcase), to
+   `bootstrap(overrides:)` and runs
    `ProxyCareApp` inside `UncontrolledProviderScope(container: ...)`;
    `ProxyCareApp` uses `MaterialApp.router` with `routerProvider`.
 

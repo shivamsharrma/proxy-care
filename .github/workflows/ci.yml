@@ -2,6 +2,7 @@ name: CI
 
 # Verifies the Flutter client on every pull request and every push to main:
 # web (with the generated-files check and config checks), Android and iOS.
+# Android and iOS build both apps (APP_VARIANT user and caretaker).
 # Release builds are unsigned (iOS) or debug-key signed (Android): no
 # signing credentials are used, and nothing is deployed.
 
@@ -94,7 +95,7 @@ jobs:
           fi
 
       - name: Build web (release, development config)
-        run: make build-web
+        run: make build-web VARIANT=user
 
   android:
     name: Android (checks and release build)
@@ -135,8 +136,11 @@ jobs:
       - name: Test
         run: make test
 
-      - name: Build APK and App Bundle (release, development config)
-        run: make build-android
+      - name: Build User app APK and App Bundle (release, development config)
+        run: make build-android-user
+
+      - name: Build Caretaker app APK and App Bundle (release, development config)
+        run: make build-android-caretaker
 
   ios:
     name: iOS (checks and unsigned release build)
@@ -182,5 +186,8 @@ jobs:
       - name: Test
         run: make test
 
-      - name: Build iOS (release, unsigned, development config)
-        run: make build-ios
+      - name: Build User app iOS (release, unsigned, development config)
+        run: make build-ios-user
+
+      - name: Build Caretaker app iOS (release, unsigned, development config)
+        run: make build-ios-caretaker

@@ -10,7 +10,8 @@ import 'presentation/widget_showcase_screen.dart';
 /// design-system component.
 ///
 /// The module is registered only when [isEnabled] (see
-/// `enabledRouteModules` in `lib/app_routes.dart`); otherwise the router
+/// `enabledRouteModules` in `lib/app_routes.dart`, which lists the
+/// development-only modules both apps add); otherwise the router
 /// has no `/widget-showcase` route and the path shows "not found".
 final class WidgetShowcaseRoutes extends RouteModule {
   /// Creates the module.
