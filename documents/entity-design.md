@@ -2,21 +2,37 @@
 
 Target Postgres schema for the backend. Behaviour comes from the `.feature` specs in
 `atdd/test-specs/`; entity fields and enum values come from
-`proxy-care-ui-ux-state-for-api-design.md` §1–§2. Where a limit appears in a spec, the
-column check matches it.
+`proxy-care-ui-ux-state-for-api-design.md` §1–§2.
 
 **Conventions**
+- **BaseEntity:** every table except `profiles` maps to an entity that extends the backend's
+  `BaseEntity`. That gives each one these columns, which are not repeated in the tables below:
+  ```sql
+  id         uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null,
+  updated_at timestamptz not null,
+  version    bigint not null default 0     -- optimistic locking
+  ```
+  A table that used to be keyed on another column (`booking_id`, `profile_id`, a token) keeps
+  that column as `not null unique`.
+- **Validation is not in the schema.** Formats, regexes, lengths, ranges, allowed values and
+  cross-field rules are checked by the request DTOs (Bean Validation) and the services. The
+  schema keeps only types, `not null`, keys, foreign keys and uniqueness. Uniqueness stays
+  because only the database can guarantee it under concurrent writes.
 - Money is an `integer` count of paise. Columns end in `_paise`.
-- Time is `timestamptz`. Every mutable table has `created_at` and `updated_at`.
+- Time is `timestamptz`.
 - Every table has RLS enabled with no policies; only the backend's own role reads and
   writes (`.claude/rules/auth-and-rls.md`). The `alter table ... enable row level security`
   lines are left out below.
-- Phone numbers are stored as `+91` followed by 10 digits starting with 6–9.
+- Phone numbers are stored as `+91` followed by 10 digits starting with 6–9 (the DTO
+  normalizes and checks this).
 - PII columns (names, phones, addresses, health notes, KYC and bank data, pickup codes,
   location) never appear in logs or event payloads.
+- **No location coordinates in the MVP** for users and patients: addresses are text only.
+  Coordinates come in v2.
 
-**Status against migrations:** `V1__extensions.sql` and `V2__profiles.sql` are applied.
-`profiles` in V2 does not yet have the `roles` cardinality check or the `phone` format check.
+**Status against migrations:** `V1__extensions.sql` and `V2__profiles.sql` are applied. V2
+still has a `preferred_language in ('en', 'hi')` check from before this convention.
 
 ---
 
@@ -71,97 +87,91 @@ create type webhook_provider  as enum ('RAZORPAY', 'RAZORPAYX', 'HYPERVERGE', 'U
 ## 2. Identity and people
 
 There are two apps, and one account (one mobile number) can hold both roles. A role is added
-when the person first verifies their OTP in that app. Each role has its own row keyed on
-`profiles.id`, and each app's profile is entered separately: signing up in the second app
-pre-fills nothing from the first role.
+when the person first verifies their OTP in that app. Each role has its own row linked by
+`profile_id`, and each app's profile is entered separately: signing up in the second app
+pre-fills nothing from the first role. `profiles` is the only table that does not extend
+`BaseEntity`; its id is the Supabase auth user id.
 
 ```sql
 create table profiles (
   id                 uuid primary key references auth.users (id) on delete cascade,
-  roles              app_role[] not null check (cardinality(roles) between 1 and 2),
-  phone              text not null unique check (phone ~ '^[+]91[6-9][0-9]{9}$'),
-  preferred_language text not null default 'en' check (preferred_language in ('en', 'hi')),
+  roles              app_role[] not null,                               -- USER, CARETAKER or both; ADMIN set by ops
+  phone              text not null unique,
+  preferred_language text not null default 'en',                        -- en | hi; synced from the app's language toggle
   created_at         timestamptz not null default now()
 );
 
 -- Family member who books (User app). Screen 04.
 create table app_users (
-  id         uuid primary key references profiles (id) on delete cascade,
-  full_name  text not null check (char_length(full_name) between 2 and 50),
+  profile_id uuid not null unique references profiles (id) on delete cascade,
+  full_name  text not null,
   sex        sex_type not null,
-  age        smallint check (age between 18 and 120),                  -- optional
-  address    text not null check (char_length(address) <= 300),
-  location   geography(Point, 4326),                                   -- set by "use current location"
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  age        smallint,                                                  -- optional
+  address    text not null
 );
 
 -- Patient (family member) a User books for. Screen 05.
--- "Lives at my address" copies the User's address and location at save time.
+-- "Lives at my address" copies the User's address at save time.
 create table patients (
-  id           uuid primary key default gen_random_uuid(),
   user_id      uuid not null references app_users (id),
   relation     relation_type not null,
-  full_name    text not null check (char_length(full_name) between 2 and 80),
-  age          smallint not null check (age between 0 and 120),
+  full_name    text not null,
+  age          smallint not null,
   sex          sex_type not null,
-  mobile       text check (mobile ~ '^[+]91[6-9][0-9]{9}$'),          -- optional; receives the pickup code
-  address      text not null check (char_length(address) <= 300),
-  location     geography(Point, 4326) not null,
+  mobile       text,                                                    -- optional; receives the pickup code
+  address      text not null,
   mobility     mobility_category not null,
-  health_notes text check (char_length(health_notes) <= 500),
-  created_at   timestamptz not null default now(),
-  updated_at   timestamptz not null default now(),
+  health_notes text,
   deleted_at   timestamptz
 );
 create index patients_user_idx on patients (user_id) where deleted_at is null;
 
 -- Caretaker (Caretaker app). Screens C1-C6. Columns stay null until their KYC step is done.
 create table caretakers (
-  id                        uuid primary key references profiles (id) on delete cascade,
+  profile_id                uuid not null unique references profiles (id) on delete cascade,
   -- C2 Basic information
-  full_name                 text check (char_length(full_name) between 2 and 80),
+  full_name                 text,
   sex                       sex_type,
-  age                       smallint check (age between 18 and 70),
-  email                     text check (email ~* '^[^@ ]+@[^@ ]+[.][^@ ]+$'),
-  emergency_contact         text check (emergency_contact ~ '^[+]91[6-9][0-9]{9}$'),
-  residential_address       text check (char_length(residential_address) <= 300),
-  occupation                text check (char_length(occupation) <= 100),
+  age                       smallint,
+  email                     text,
+  emergency_contact         text,
+  residential_address       text,
+  occupation                text,
   marital_status            marital_status,
   languages                 text[] not null default '{}',              -- e.g. {hi,en,pa}
-  -- C4 Photo & identity check (video KYC via HyperVerge)
+  -- C4 Photo & identity. The app uploads the photo to Supabase Storage; the backend stores
+  -- only the file record. Video KYC is not run in the MVP: the caretaker picks a slot and an
+  -- admin calls them through another channel.
   photo_file_id             uuid,                                      -- fk added after files
   vkyc_slot_at              timestamptz,
-  hyperverge_transaction_id text unique,
+  -- Not in the MVP: HyperVerge video KYC (hyperverge_transaction_id text unique) comes later.
   -- C3 Aadhaar & PAN: not in the MVP; columns kept for when it is integrated
-  aadhaar_last4             char(4) check (aadhaar_last4 ~ '^[0-9]{4}$'),
+  aadhaar_last4             char(4),
   aadhaar_verified_at       timestamptz,
-  pan_masked                text check (pan_masked ~ '^[A-Z]{5}[*]{4}[A-Z]$'),
+  pan_masked                text,
   pan_verified_at           timestamptz,
   -- C5 Payout account (verified by a Rs 1 test deposit through RazorpayX)
   razorpayx_contact_id      text unique,                               -- the person: name, phone, email
   razorpayx_fund_account_id text unique,                               -- the bank account under that contact
-  bank_account_holder_name  text check (char_length(bank_account_holder_name) between 2 and 80),
-  bank_account_last4        char(4) check (bank_account_last4 ~ '^[0-9]{4}$'),
-  bank_ifsc                 text check (bank_ifsc ~ '^[A-Z]{4}0[A-Z0-9]{6}$'),
+  bank_account_holder_name  text,
+  bank_account_last4        char(4),
+  bank_ifsc                 text,
   bank_name                 text,
   bank_branch               text,
   bank_validation_status    bank_validation,
   -- KYC progress
   kyc_status                kyc_status not null default 'IN_PROGRESS',
-  kyc_step                  smallint not null default 2 check (kyc_step between 1 and 5),  -- step 1 (mobile) is done at sign-up
+  kyc_step                  smallint not null default 2,               -- step 1 (mobile) is done at sign-up
   approved_at               timestamptz,
-  rejected_reason           text,
+  rejected_reason           text,                                      -- set by the ADMIN-only KYC decision endpoint
   -- Dispatch
-  is_online                 boolean not null default false check (not is_online or kyc_status = 'APPROVED'),
+  is_online                 boolean not null default false,
   last_location             geography(Point, 4326),
   last_location_at          timestamptz,
   -- Read model counters
-  rating_avg                numeric(2, 1) check (rating_avg between 1 and 5),
+  rating_avg                numeric(2, 1),
   rating_count              integer not null default 0,
-  visit_count               integer not null default 0,
-  created_at                timestamptz not null default now(),
-  updated_at                timestamptz not null default now()
+  visit_count               integer not null default 0
 );
 create unique index caretakers_email_key on caretakers (lower(email));        -- C2 "email already in use"
 create index caretakers_dispatch_gix on caretakers using gist (last_location)
@@ -169,10 +179,9 @@ create index caretakers_dispatch_gix on caretakers using gist (last_location)
 
 -- Push notification tokens; one profile can have several devices and both apps.
 create table device_tokens (
-  fcm_token  text primary key,
+  fcm_token  text not null unique,
   profile_id uuid not null references profiles (id) on delete cascade,
-  platform   text not null check (platform in ('android', 'ios')),
-  updated_at timestamptz not null default now()
+  platform   text not null                                             -- android | ios
 );
 create index device_tokens_profile_idx on device_tokens (profile_id);
 ```
@@ -182,19 +191,19 @@ create index device_tokens_profile_idx on device_tokens (profile_id);
 ## 3. Files
 
 Uploads (booking attachments, caretaker photo, bill QR images, final bills, dispute photos).
-JPG, PNG or PDF, at most 10 MB (B3).
+JPG, PNG or PDF, at most 10 MB (B3); the DTO checks type and size. The caretaker photo is
+uploaded by the app straight to Supabase Storage, and the backend records its
+`storage_path` here.
 
 ```sql
 create table files (
-  id           uuid primary key default gen_random_uuid(),
   owner_id     uuid not null references profiles (id),
   booking_id   uuid,                                                   -- fk added after bookings
   kind         file_kind not null,
-  file_name    text not null check (char_length(file_name) <= 255),
-  mime_type    text not null check (mime_type in ('image/jpeg', 'image/png', 'application/pdf')),
-  size_bytes   integer not null check (size_bytes between 1 and 10485760),
-  storage_path text not null unique,
-  created_at   timestamptz not null default now()
+  file_name    text not null,
+  mime_type    text not null,
+  size_bytes   integer not null,
+  storage_path text not null unique
 );
 
 alter table caretakers add constraint caretakers_photo_fk foreign key (photo_file_id) references files (id);
@@ -206,22 +215,19 @@ alter table caretakers add constraint caretakers_photo_fk foreign key (photo_fil
 
 ```sql
 create table hospitals (
-  id              uuid primary key default gen_random_uuid(),
   google_place_id text not null unique,
   name            text not null,
   address         text not null,
-  location        geography(Point, 4326) not null,
-  created_at      timestamptz not null default now()
+  location        geography(Point, 4326) not null
 );
 
 -- Price = hourly wage x block hours + margin + platform fee.
 create table pricing_rules (
-  mobility           mobility_category primary key,
-  hourly_wage_paise  integer not null check (hourly_wage_paise > 0),
-  block_hours        smallint not null default 3 check (block_hours > 0),
-  margin_paise       integer not null default 40000 check (margin_paise >= 0),
-  platform_fee_paise integer not null default 9900 check (platform_fee_paise >= 0),
-  updated_at         timestamptz not null default now()
+  mobility           mobility_category not null unique,
+  hourly_wage_paise  integer not null,
+  block_hours        smallint not null default 3,
+  margin_paise       integer not null default 40000,
+  platform_fee_paise integer not null default 9900
 );
 ```
 
@@ -233,7 +239,6 @@ create table pricing_rules (
 create sequence booking_code_seq start 2481;
 
 create table bookings (
-  id                  uuid primary key default gen_random_uuid(),
   code                text not null unique default ('PC-' || nextval('booking_code_seq')),
   user_id             uuid not null references app_users (id),
   patient_id          uuid not null references patients (id),
@@ -243,9 +248,9 @@ create table bookings (
   stage               visit_stage,                                    -- while ASSIGNED / IN_PROGRESS
   visit_date          date not null,
   pickup_at           timestamptz not null,
-  purposes            visit_purpose[] not null check (cardinality(purposes) between 1 and 5),
-  department          text check (char_length(department) <= 100),
-  instructions        text check (char_length(instructions) <= 1000), -- includes doctor name / appointment
+  purposes            visit_purpose[] not null,
+  department          text,
+  instructions        text, -- includes doctor name / appointment
   -- price snapshot, frozen at confirm time
   mobility            mobility_category not null,
   hourly_wage_paise   integer not null,
@@ -259,12 +264,7 @@ create table bookings (
   location_sharing    boolean not null default false,
   payments_frozen     boolean not null default false,
   handover_checklist  jsonb,                                          -- D5: {"patient_inside":true,"papers":true,"medicines":true,"belongings":true}
-  idempotency_key     text unique,                                    -- repeat Confirm & Pay taps
-  version             integer not null default 1,                     -- optimistic locking
-  created_at          timestamptz not null default now(),
-  updated_at          timestamptz not null default now(),
-  check (state in ('PAYMENT_PENDING', 'WAITING') or caretaker_id is not null or state = 'CANCELLED'),
-  check (completed_at is null or picked_up_at is not null)
+  idempotency_key     text unique                                     -- repeat Confirm & Pay taps
 );
 create index bookings_user_idx      on bookings (user_id, visit_date desc);
 create index bookings_caretaker_idx on bookings (caretaker_id, visit_date desc);
@@ -273,63 +273,54 @@ alter table files add constraint files_booking_fk foreign key (booking_id) refer
 
 -- Audit trail of state and stage changes; drives the U2 visit timeline.
 create table booking_events (
-  id         bigint generated always as identity primary key,
   booking_id uuid not null references bookings (id) on delete cascade,
   state      booking_state not null,
   stage      visit_stage,
-  actor_id   uuid references profiles (id),                           -- null for system changes
-  created_at timestamptz not null default now()
+  actor_id   uuid references profiles (id)                            -- null for system changes
 );
 create index booking_events_booking_idx on booking_events (booking_id, created_at);
 
 -- Readable by the booking's User only, never by the caretaker.
 -- Verification has no attempt limit and never blocks the caretaker.
 create table booking_secrets (
-  booking_id  uuid primary key references bookings (id) on delete cascade,
-  pickup_code char(4) not null check (pickup_code ~ '^[0-9]{4}$')
+  booking_id  uuid not null unique references bookings (id) on delete cascade,
+  pickup_code char(4) not null
 );
 
 -- Dispatch: one offer per nearby caretaker; the first accept wins.
 create table booking_offers (
-  id            uuid primary key default gen_random_uuid(),
   booking_id    uuid not null references bookings (id) on delete cascade,
   caretaker_id  uuid not null references caretakers (id),
   status        offer_status not null default 'SENT',
-  distance_m    integer not null check (distance_m >= 0),
+  distance_m    integer not null,
   locality      text not null,                                        -- shown before accept; full address hidden
-  earning_paise integer not null check (earning_paise >= 0),
+  earning_paise integer not null,
   expires_at    timestamptz not null,
   responded_at  timestamptz,
-  created_at    timestamptz not null default now(),
   unique (booking_id, caretaker_id)
 );
 
 -- One service per selected purpose.
 create table booking_services (
-  id           uuid primary key default gen_random_uuid(),
   booking_id   uuid not null references bookings (id) on delete cascade,
   type         visit_purpose not null,
-  detail       text check (char_length(detail) <= 200),
+  detail       text,
   status       service_status not null default 'PENDING',
   started_at   timestamptz,
   completed_at timestamptz,
-  unique (booking_id, type),
-  check (status = 'PENDING' or started_at is not null),
-  check (status <> 'COMPLETED' or completed_at is not null)
+  unique (booking_id, type)
 );
 
 -- Cancellation is designed only from WAITING (B5).
 create table cancellations (
-  booking_id          uuid primary key references bookings (id),
+  booking_id          uuid not null unique references bookings (id),
   cancelled_by        uuid not null references profiles (id),
   policy_case         cancellation_case not null,
   hours_before_pickup numeric(6, 2) not null,
-  paid_paise          integer not null check (paid_paise >= 0),
-  deduction_paise     integer not null check (deduction_paise >= 0),
+  paid_paise          integer not null,
+  deduction_paise     integer not null,
   deduction_reason    text not null,
-  refund_paise        integer not null check (refund_paise >= 0),
-  created_at          timestamptz not null default now(),
-  check (paid_paise = deduction_paise + refund_paise)
+  refund_paise        integer not null
 );
 ```
 
@@ -344,34 +335,26 @@ by the client.
 
 ```sql
 create table payment_requests (
-  id           uuid primary key default gen_random_uuid(),
   booking_id   uuid not null references bookings (id),
   type         payment_request_type not null,
   payee        payment_request_payee not null,
-  amount_paise integer not null check (amount_paise > 0),
-  description  text not null check (char_length(description) <= 200),
+  amount_paise integer not null,
+  description  text not null,
   requested_by uuid references profiles (id),                         -- null for system-created CARETAKER_FEE
   status       payment_request_status not null default 'REQUESTED',
-  paid_at      timestamptz,
-  created_at   timestamptz not null default now(),
-  updated_at   timestamptz not null default now(),
-  check (status <> 'PAID' or paid_at is not null),
-  check (status <> 'DISPUTED' or type = 'HOSPITAL_BILL')
+  paid_at      timestamptz
 );
 create index payment_requests_booking_idx on payment_requests (booking_id);
 
 create table payments (
-  id                  uuid primary key default gen_random_uuid(),
   booking_id          uuid not null references bookings (id),
   payment_request_id  uuid references payment_requests (id),          -- null for the booking charge
-  amount_paise        integer not null check (amount_paise > 0),      -- copied from the server record
+  amount_paise        integer not null,      -- copied from the server record
   razorpay_order_id   text not null unique,
   razorpay_payment_id text unique,
   method              text,                                           -- upi, card, netbanking
   status              payment_status not null default 'CREATED',
-  paid_at             timestamptz,
-  created_at          timestamptz not null default now(),
-  updated_at          timestamptz not null default now()
+  paid_at             timestamptz
 );
 create index payments_booking_idx on payments (booking_id);
 -- At most one successful payment per booking charge and per payment request.
@@ -382,15 +365,12 @@ create unique index payments_one_paid_request on payments (payment_request_id)
 
 -- Refunds go to the User's bank / original payment method.
 create table refunds (
-  id                 uuid primary key default gen_random_uuid(),
   booking_id         uuid not null references bookings (id),
   payment_id         uuid not null references payments (id),
-  amount_paise       integer not null check (amount_paise > 0),
-  reason             text not null check (reason in ('CANCELLATION', 'DIAGNOSTICS_PRO_RATE')),
+  amount_paise       integer not null,
+  reason             text not null,                                   -- CANCELLATION | DIAGNOSTICS_PRO_RATE
   razorpay_refund_id text unique,
-  status             refund_status not null default 'PENDING',
-  created_at         timestamptz not null default now(),
-  updated_at         timestamptz not null default now()
+  status             refund_status not null default 'PENDING'
 );
 ```
 
@@ -403,7 +383,6 @@ is own transport (P7b) and has no provider fields.
 
 ```sql
 create table rides (
-  id                  uuid primary key default gen_random_uuid(),
   booking_id          uuid not null references bookings (id) on delete cascade,
   leg                 ride_leg not null,
   mode                ride_mode not null,
@@ -414,16 +393,12 @@ create table rides (
   driver_phone_masked text,
   vehicle_plate       text,
   ride_pin            text,
-  fare_estimate_paise integer check (fare_estimate_paise >= 0),
-  final_fare_paise    integer check (final_fare_paise >= 0),
+  fare_estimate_paise integer,
+  final_fare_paise    integer,
   status              ride_status,
   payment_request_id  uuid references payment_requests (id),
   started_at          timestamptz,
-  completed_at        timestamptz,
-  created_at          timestamptz not null default now(),
-  updated_at          timestamptz not null default now(),
-  check (mode = 'PERSONAL' or provider is not null),
-  check (mode = 'COMMERCIAL' or (provider is null and provider_ride_id is null and status is null))
+  completed_at        timestamptz
 );
 -- One active ride per leg; a cancelled ride can be rebooked on the same leg.
 create unique index rides_one_active_per_leg on rides (booking_id, leg)
@@ -443,7 +418,6 @@ this before setting `bookings.completed_at`; the index below makes the check che
 
 ```sql
 create table hospital_bills (
-  id                        uuid primary key default gen_random_uuid(),
   booking_id                uuid not null references bookings (id) on delete cascade,
   qr_payload                text not null,                            -- upi://pay?pa=...&pn=...&mc=8062&am=500.00
   payee_vpa                 text not null,
@@ -452,19 +426,15 @@ create table hospital_bills (
   qr_readable               boolean not null,
   merchant_matches_hospital boolean not null,
   mcc_is_hospital           boolean not null,
-  amount_paise              integer not null check (amount_paise > 0),
+  amount_paise              integer not null,
   amount_source             bill_amount_source not null,              -- QR amount is read-only; MANUAL when the QR has none
-  description               text not null check (char_length(description) <= 200),
+  description               text not null,
   qr_image_file_id          uuid references files (id),
   status                    bill_status not null,
   payment_request_id        uuid unique references payment_requests (id),  -- null when QR_MISMATCH
   final_bill_file_id        uuid references files (id),                -- H4; photo or PDF
   final_bill_uploaded_at    timestamptz,
-  created_by                uuid not null references caretakers (id),
-  created_at                timestamptz not null default now(),
-  updated_at                timestamptz not null default now(),
-  check (status = 'QR_MISMATCH' or payment_request_id is not null),
-  check (status <> 'BILL_ATTACHED' or (final_bill_file_id is not null and final_bill_uploaded_at is not null))
+  created_by                uuid not null references caretakers (id)
 );
 create index hospital_bills_booking_idx on hospital_bills (booking_id);
 create index hospital_bills_final_bill_pending_idx on hospital_bills (booking_id)
@@ -478,32 +448,25 @@ create index hospital_bills_final_bill_pending_idx on hospital_bills (booking_id
 ```sql
 -- One earning per completed visit; the wallet balance is the sum of IN_WALLET earnings.
 create table caretaker_earnings (
-  booking_id         uuid primary key references bookings (id),
+  booking_id         uuid not null unique references bookings (id),
   caretaker_id       uuid not null references caretakers (id),
-  block_paise        integer not null check (block_paise >= 0),
-  extra_time_paise   integer not null default 0 check (extra_time_paise >= 0),
+  block_paise        integer not null,
+  extra_time_paise   integer not null default 0,
   bill_number        text unique,                                     -- generated when the fee is paid
   status             earning_status not null default 'ON_HOLD',
   added_to_wallet_at timestamptz,
-  withdrawal_id      uuid,                                            -- fk added after caretaker_withdrawals
-  created_at         timestamptz not null default now(),
-  updated_at         timestamptz not null default now(),
-  check (status not in ('IN_WALLET', 'WITHDRAWN') or added_to_wallet_at is not null),
-  check (status <> 'WITHDRAWN' or withdrawal_id is not null)
+  withdrawal_id      uuid                                             -- fk added after caretaker_withdrawals
 );
 create index caretaker_earnings_caretaker_idx on caretaker_earnings (caretaker_id, status);
 
 -- Manual "Withdraw to bank" through a RazorpayX payout.
 create table caretaker_withdrawals (
-  id                  uuid primary key default gen_random_uuid(),
   caretaker_id        uuid not null references caretakers (id),
-  amount_paise        integer not null check (amount_paise > 0),
+  amount_paise        integer not null,
   bank_account_last4  char(4) not null,
   razorpayx_payout_id text unique,
   utr                 text,
-  status              withdrawal_status not null default 'PENDING',
-  created_at          timestamptz not null default now(),
-  updated_at          timestamptz not null default now()
+  status              withdrawal_status not null default 'PENDING'
 );
 
 alter table caretaker_earnings add constraint caretaker_earnings_withdrawal_fk
@@ -513,26 +476,23 @@ create sequence dispute_no_seq start 1001;
 
 -- Raised by the User on a hospital bill (H5) or by the caretaker on settlement (F5).
 create table disputes (
-  id                  uuid primary key default gen_random_uuid(),
   ticket_no           text not null unique default ('DS-' || nextval('dispute_no_seq')),
   booking_id          uuid not null references bookings (id),
   hospital_bill_id    uuid references hospital_bills (id),
   raised_by           uuid not null references profiles (id),
   reason              dispute_reason not null,
-  details             text check (char_length(details) <= 2000),
+  details             text,
   photo_file_id       uuid references files (id),
   status              dispute_status not null default 'OPEN',
   freshdesk_ticket_id bigint unique,
-  created_at          timestamptz not null default now(),
   resolved_at         timestamptz
 );
 
 create table ratings (
-  booking_id   uuid primary key references bookings (id),
+  booking_id   uuid not null unique references bookings (id),
   user_id      uuid not null references app_users (id),
   caretaker_id uuid not null references caretakers (id),
-  stars        smallint not null check (stars between 1 and 5),
-  created_at   timestamptz not null default now()
+  stars        smallint not null
 );
 ```
 
@@ -550,7 +510,7 @@ create table webhook_events (
   received_at  timestamptz not null default now(),
   processed_at timestamptz,
   error        text,
-  primary key (provider, event_id)
+  unique (provider, event_id)
 );
 ```
 

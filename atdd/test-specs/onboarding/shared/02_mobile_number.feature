@@ -8,6 +8,7 @@ Feature: Mobile number entry (Screen 02)
   # Inputs: country code (+91), mobile (10 digits). Action: Send OTP.
   # States: invalid number, sending, rate-limited.
   # ASSUMPTION: valid Indian mobile numbers start with 6, 7, 8 or 9.
+  # DECISION: the rate-limit scenario is tagged @IgnoreForMVP (Supabase test numbers in the MVP).
   # ASSUMPTION: error copy below is placeholder text; replace with final UX copy.
 
   Background:
@@ -81,7 +82,7 @@ Feature: Mobile number entry (Screen 02)
     And I enter the mobile number "9876543210"
     Then the inline error should not be shown
 
-  @negative
+  @negative @IgnoreForMVP
   Scenario: OTP requests are rate-limited
     Given the number "9876543210" has reached the OTP request limit
     When I enter the mobile number "9876543210"

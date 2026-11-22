@@ -8,6 +8,9 @@ Feature: Caretaker photo and identity check (Screen C4)
   # Inputs: profile photo* (camera only), video KYC slot* (time chips). Action: Book call -> C5.
   # MVP RULE: this screen is reached directly from C2 Basic information. C3 Aadhaar & PAN is not
   #           in the MVP and is not covered here.
+  # DECISION: the MVP does not run video KYC. The slot the caretaker picks is stored as is, with no
+  #           capacity or availability check; an admin calls the caretaker through another channel.
+  #           Scenarios about full, missing or taken slots are tagged @IgnoreForMVP.
   # ASSUMPTION: slot list comes from the server; copy is placeholder.
 
   Background:
@@ -88,13 +91,13 @@ Feature: Caretaker photo and identity check (Screen C4)
     And I select the video KYC slot "Tomorrow, 3:00 PM"
     Then only "Tomorrow, 3:00 PM" should be selected
 
-  @ui-state
+  @ui-state @IgnoreForMVP
   Scenario: Slots that are full are shown as unavailable
     Given the slot "Tomorrow, 10:00 AM" is fully booked
     Then the "Tomorrow, 10:00 AM" chip should be shown as unavailable
     And I should not be able to select it
 
-  @ui-state
+  @ui-state @IgnoreForMVP
   Scenario: No slots available
     Given there are no video KYC slots available
     Then I should see the empty state "No call slots right now. Please check again later."
@@ -136,7 +139,7 @@ Feature: Caretaker photo and identity check (Screen C4)
     Then I should see upload progress for the photo
     And the "Book call" button should be disabled until the request finishes
 
-  @negative
+  @negative @IgnoreForMVP
   Scenario: Selected slot gets taken by someone else before booking
     Given I have taken a photo
     And I have selected the slot "Tomorrow, 11:00 AM"
@@ -164,7 +167,6 @@ Feature: Caretaker photo and identity check (Screen C4)
     When I press the back button
     Then I should see the "KYC checklist" screen
     And the "Photo & video KYC" step should be marked "Current"
-    And I should not see the "Aadhaar & PAN" screen
 
   @navigation
   Scenario: Resuming after the app is closed keeps the progress

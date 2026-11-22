@@ -12,6 +12,8 @@ paths:
 `atdd/test-specs/<feature>/<nn>_<name>.feature`. Every test traces to a
 scenario; code without a scenario needs a reason in the PR. Scenarios under
 an "Open design questions" comment are out of scope until decided.
+Scenarios tagged `@IgnoreForMVP` get no tests (unit, widget, backend or
+Maestro) and no implementation in the MVP.
 
 ## Test pyramid (client)
 | Level | Tool | For |

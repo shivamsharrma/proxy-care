@@ -131,7 +131,7 @@ API needs: create gateway order for a booking or payment request · handle gatew
 **03 Verify OTP** (shared)
 - Displays: masked number, resend countdown (30 s).
 - Inputs: 6-digit OTP.
-- Actions: Verify; Resend SMS; Get code on call; Change number.
+- Actions: Verify; Resend SMS; Change number.
 - States: verifying, wrong code, expired, resend locked. New user → 04 (User) or C1 (Caretaker); existing → home.
 
 **04 User profile (Stage A)**

@@ -43,6 +43,14 @@ specifics:
   creates it — deny-all for `anon` and `authenticated`, so the apps can't
   bypass the API. Adding a policy is an architecture decision, not a
   migration detail. `RlsEnabledTest` fails the build otherwise.
+- **The one exception: the caretaker photo bucket.** The Caretaker app uploads
+  the C4 profile photo straight to the private Supabase Storage bucket
+  `caretaker-photos`. Policies on `storage.objects` let an `authenticated`
+  user insert, update and read only objects in that bucket under
+  `<auth.uid()>/`. No other bucket, schema or table gets a policy. The backend
+  stores only the file record (`files.storage_path`), and rejects a reported
+  path that doesn't start with the caller's id. The bucket and its policies
+  are Supabase-side changes: write the SQL for a human to apply.
 - Ownership is enforced in the backend service (`backend-code.md` →
   Identity and authorization), mirroring the `*_access_control.feature` specs.
 - Tables referencing `auth.users` work locally through the stub

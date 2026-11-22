@@ -33,7 +33,7 @@ Feature: Onboarding navigation, routing and access control
       | Caretaker app | a session with KYC REJECTED                                  | Under review      |
 
   @mvp-scope
-  Scenario: The full MVP caretaker onboarding path skips Aadhaar & PAN
+  Scenario: The full MVP caretaker onboarding path
     Given I am signing up in the Caretaker app
     When I verify my mobile number with the correct OTP
     Then I should see the "KYC checklist" screen
@@ -43,9 +43,8 @@ Feature: Onboarding navigation, routing and access control
     Then I should see the "Payout account" screen
     When I enter valid bank details and tap "Submit for review"
     Then I should see the "Under review" screen
-    And at no point should I have seen the "Aadhaar & PAN" screen
 
-  @mvp-scope
+  @mvp-scope @IgnoreForMVP
   Scenario: A deep link to Aadhaar & PAN is not available in the MVP
     Given I am a caretaker with KYC "IN_PROGRESS"
     When I open a deep link to the Aadhaar & PAN step

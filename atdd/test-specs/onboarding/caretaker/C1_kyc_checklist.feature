@@ -24,10 +24,9 @@ Feature: Caretaker KYC checklist (Screen C1)
       | Basic information     | Current|
       | Photo & video KYC     | To do  |
       | Payout account        | To do  |
-    And I should not see an "Aadhaar & PAN" step
     And I should see the progress "Step 2 of 4"
 
-  @mvp-scope
+  @mvp-scope @IgnoreForMVP
   Scenario: Aadhaar & PAN step is hidden in the MVP build
     When I land on the "KYC checklist" screen
     Then no step labelled "Aadhaar & PAN" should be shown

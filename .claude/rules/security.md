@@ -18,7 +18,8 @@
   comes only from the verified token (`ISecurityIdentityProvider`), never from
   the request; someone else's resource is a 404.
 - **Database:** the backend connects as its own Postgres role; every table has
-  RLS on with no policies; the `service_role` key is never used anywhere
+  RLS on with no policies (sole exception: the `caretaker-photos` Storage
+  bucket, `auth-and-rls.md` → Schema and RLS); the `service_role` key is never used anywhere
   (mechanics: `auth-and-rls.md`).
 - **Input:** validate at the boundary (Bean Validation / domain factories);
   parameterized queries only — no string-built SQL or JPQL.

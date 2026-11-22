@@ -48,7 +48,6 @@ Feature: Caretaker basic information (Screen C2)
     And I tap "Save and continue"
     Then my basic information should be saved
     And I should see the "Photo & identity check" screen
-    And I should not see the "Aadhaar & PAN" screen
 
   @happy-path @mvp-scope
   Scenario: Basic information step is marked done on the checklist

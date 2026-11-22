@@ -12,7 +12,10 @@ Feature: Verify OTP (Screen 03)
   #          Caretaker app: no CARETAKER role yet -> C1, approved -> P1.
   # DECISION: one mobile number can hold both roles. Signing up in the other app adds that
   #           role to the same account; it never blocks the number.
-  # ASSUMPTION: attempt and resend limits come from server config; copy is placeholder.
+  # DECISION: the MVP signs in with Supabase test phone numbers and fixed OTPs; no DLT template.
+  #           The OTP expires after 60 seconds. Attempt-limit, expiry and resend-lock scenarios
+  #           are tagged @IgnoreForMVP.
+  # ASSUMPTION: copy is placeholder.
 
   Background:
     Given I have requested an OTP for the mobile number "9876543210"
@@ -134,7 +137,7 @@ Feature: Verify OTP (Screen 03)
     When I start typing a new OTP
     Then the inline error should be cleared
 
-  @negative
+  @negative @IgnoreForMVP
   Scenario: Too many wrong attempts locks verification
     Given I have entered a wrong OTP the maximum number of allowed times
     When I enter the OTP "111111"
@@ -143,7 +146,7 @@ Feature: Verify OTP (Screen 03)
     And the "Verify" button should be disabled
     And the "Resend SMS" action should be available once the countdown ends
 
-  @negative
+  @negative @IgnoreForMVP
   Scenario: Expired OTP cannot be used
     Given the OTP sent to "9876543210" has expired
     When I enter that OTP
@@ -162,7 +165,7 @@ Feature: Verify OTP (Screen 03)
     And the previously sent OTP should no longer be accepted
 
 
-  @negative
+  @negative @IgnoreForMVP
   Scenario: Resend is locked after too many resends
     Given I have resent the code the maximum number of allowed times
     When the resend countdown finishes

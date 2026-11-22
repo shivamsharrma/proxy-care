@@ -6,7 +6,8 @@ Feature: User profile - Stage A (Screen 04)
 
   # Source: proxy-care-api-context.md §4 "04 User profile (Stage A)"
   # Inputs: full name*, sex* (F/M/Other), age, mobile (prefilled, verified, read-only),
-  #         address* (text or "use current location"). Action: Continue -> 05.
+  #         address* (typed text). Action: Continue -> 05.
+  # DECISION: no "use current location" option; the address is typed only.
   # ASSUMPTION: name 2-50 chars, letters/spaces/.'- only; age optional, whole number 18-120.
   # ASSUMPTION: error copy is placeholder.
 
@@ -21,7 +22,6 @@ Feature: User profile - Stage A (Screen 04)
     And I should see the sex options "Female", "Male" and "Other" marked as required
     And I should see the optional field "Age"
     And I should see the field "Address" marked as required
-    And I should see the option "Use current location"
     And the mobile field should show "+91 9876543210"
     And the mobile field should be read-only
     And the mobile field should show a "Verified" badge
@@ -44,35 +44,6 @@ Feature: User profile - Stage A (Screen 04)
     And I tap "Continue"
     Then my user profile should be saved without an age
     And I should see the "Add family member" screen
-
-  @happy-path
-  Scenario: Filling the address with the current location
-    Given location permission is granted
-    And the device location resolves to "Koregaon Park, Pune 411001"
-    When I tap "Use current location"
-    Then I should see a loading indicator in the address field
-    And the "Address" field should be filled with "Koregaon Park, Pune 411001"
-    And the "Address" field should stay editable
-
-  @happy-path
-  Scenario: Location permission prompt on first use
-    Given location permission has not been requested yet
-    When I tap "Use current location"
-    Then the system location permission prompt should be shown
-
-  @negative
-  Scenario: Location permission denied
-    Given location permission is denied
-    When I tap "Use current location"
-    Then I should see the message "Allow location access or type your address"
-    And the "Address" field should stay empty and editable
-
-  @negative
-  Scenario: Location could not be resolved
-    Given location permission is granted
-    And the device location cannot be resolved
-    When I tap "Use current location"
-    Then I should see the message "Couldn't find your location. Please type your address."
 
   @ui-state
   Scenario: Continue is disabled until all required fields are filled

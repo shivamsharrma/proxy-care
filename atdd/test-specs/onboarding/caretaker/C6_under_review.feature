@@ -8,6 +8,9 @@ Feature: Caretaker application under review (Screen C6)
   # Displays: status timeline (details submitted, video KYC at time, approval ~24 h after call).
   # Actions: Reschedule call; Go to home -> P1.
   # MVP RULE: the "Aadhaar/PAN verified" timeline entry is NOT shown because C3 is not in the MVP.
+  # DECISION: no call outcome ("completed", "missed") is recorded in the MVP; an admin only approves
+  #           or rejects the KYC (ADMIN-only endpoint). A rescheduled slot is stored as is, with no
+  #           availability check. Those scenarios are tagged @IgnoreForMVP.
   # ASSUMPTION: an unapproved caretaker cannot go online on P1 (backlog "online gate").
 
   Background:
@@ -25,7 +28,6 @@ Feature: Caretaker application under review (Screen C6)
       | Approval                 | To do   |
     And the "Video KYC call" entry should show "Tomorrow, 11:00 AM"
     And the "Approval" entry should say it takes about 24 hours after the call
-    And I should not see an "Aadhaar/PAN verified" entry
 
   @happy-path
   Scenario: Rescheduling the video KYC call
@@ -42,7 +44,7 @@ Feature: Caretaker application under review (Screen C6)
     And I close the slot picker without choosing
     Then the "Video KYC call" entry should still show "Tomorrow, 11:00 AM"
 
-  @negative
+  @negative @IgnoreForMVP
   Scenario: Rescheduling fails because the slot was taken
     When I tap "Reschedule call"
     And I select a slot that becomes fully booked before I confirm
@@ -58,7 +60,7 @@ Feature: Caretaker application under review (Screen C6)
     And the online/offline toggle should be disabled
     And I should not receive new visit requests
 
-  @happy-path
+  @happy-path @IgnoreForMVP
   Scenario: Video KYC call completed
     Given my video KYC call has been completed
     When I open the "Under review" screen
@@ -81,7 +83,7 @@ Feature: Caretaker application under review (Screen C6)
     And I should see the rejection reason
     And the online/offline toggle should not be available
 
-  @negative
+  @negative @IgnoreForMVP
   Scenario: Missed video KYC call prompts a reschedule
     Given my video KYC call time has passed without the call taking place
     When I open the "Under review" screen

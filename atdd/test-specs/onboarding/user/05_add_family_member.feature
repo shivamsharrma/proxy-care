@@ -34,7 +34,6 @@ Feature: Add family member - Stage B (Screen 05)
   Scenario: Turning off "Lives at my address" shows a required address field
     When I turn off the "Lives at my address" toggle
     Then the "Address" field should be shown and marked as required
-    And the "Use current location" option should not be required to continue
 
   @smoke @happy-path
   Scenario: Adding a parent who lives with the user
