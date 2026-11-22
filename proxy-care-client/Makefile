@@ -8,12 +8,21 @@
 #   make analyze                  Static analysis (strict)
 #   make test                     Run all tests
 #   make check-env [ENV=...]      Validate config/env/$(ENV).json
-#   make build-web [ENV=...]      Validate config, then release web build
-#   make build-android [ENV=...]  Validate config, then release APK and App
+#   make run [ENV=...] [VARIANT=...]
+#                                 Run the VARIANT app (Android device)
+#   make run-user [ENV=...]       Run the User app (Android device)
+#   make run-caretaker [ENV=...]  Run the Caretaker app (Android device)
+#   make build-web [ENV=...] [VARIANT=...]
+#                                 Validate config, then release web build
+#   make build-android [ENV=...] [VARIANT=...]
+#                                 Validate config, then release APK and App
 #                                 Bundle (debug-key signed; needs Android SDK
 #                                 and JDK 21)
-#   make build-ios [ENV=...]      Validate config, then unsigned release iOS
+#   make build-android-user, make build-android-caretaker [ENV=...]
+#   make build-ios [ENV=...] [VARIANT=...]
+#                                 Validate config, then unsigned release iOS
 #                                 build (macOS with Xcode only)
+#   make build-ios-user, make build-ios-caretaker [ENV=...]
 #   make goldens                  Regenerate golden images (Linux; see
 #                                 TESTING.md)
 #   make build-showcase [BASE_HREF=/repo/]
@@ -23,6 +32,13 @@
 # ENV defaults to development. Other environments read config/env/<ENV>.json,
 # e.g. `make build-web ENV=production` uses config/env/production.json.
 #
+# VARIANT (user or caretaker; default user) picks the app. The default is a
+# Makefile convenience only: the app itself never defaults and fails at
+# start-up without APP_VARIANT, so CI passes VARIANT explicitly. It sets the
+# APP_VARIANT define and, on Android, the product flavor (application ID and
+# app name). iOS has no per-variant schemes yet, so iOS builds set only
+# APP_VARIANT (README, "iOS configuration").
+#
 # pubspec.lock and generated files are committed: after `make get` or
 # `make gen`, commit what changed.
 
@@ -31,9 +47,13 @@ DART ?= dart
 ENV ?= development
 DEFINES_FILE ?= config/env/$(ENV).json
 BASE_HREF ?= /
+VARIANT ?= user
+VARIANT_DEFINE = --dart-define=APP_VARIANT=$(VARIANT)
 
 .PHONY: get get-locked gen format format-check analyze test check-env build-web \
-	build-android build-ios build-showcase goldens
+	build-android build-ios build-showcase goldens run run-user run-caretaker \
+	build-android-user build-android-caretaker build-ios-user \
+	build-ios-caretaker
 
 get:
 	$(FLUTTER) pub get
@@ -65,16 +85,32 @@ test:
 check-env:
 	$(DART) run tool/check_env.dart $(DEFINES_FILE)
 
+run: check-env
+	$(FLUTTER) run --flavor $(VARIANT) $(VARIANT_DEFINE) \
+		--dart-define-from-file=$(DEFINES_FILE)
+
+run-user run-caretaker: run-%:
+	$(MAKE) run VARIANT=$*
+
 build-web: check-env
-	$(FLUTTER) build web --release --dart-define-from-file=$(DEFINES_FILE)
+	$(FLUTTER) build web --release $(VARIANT_DEFINE) \
+		--dart-define-from-file=$(DEFINES_FILE)
 
 build-android: check-env
-	$(FLUTTER) build apk --release --dart-define-from-file=$(DEFINES_FILE)
-	$(FLUTTER) build appbundle --release --dart-define-from-file=$(DEFINES_FILE)
+	$(FLUTTER) build apk --release --flavor $(VARIANT) $(VARIANT_DEFINE) \
+		--dart-define-from-file=$(DEFINES_FILE)
+	$(FLUTTER) build appbundle --release --flavor $(VARIANT) $(VARIANT_DEFINE) \
+		--dart-define-from-file=$(DEFINES_FILE)
+
+build-android-user build-android-caretaker: build-android-%:
+	$(MAKE) build-android VARIANT=$*
 
 build-ios: check-env
-	$(FLUTTER) build ios --release --no-codesign \
+	$(FLUTTER) build ios --release --no-codesign $(VARIANT_DEFINE) \
 		--dart-define-from-file=$(DEFINES_FILE)
+
+build-ios-user build-ios-caretaker: build-ios-%:
+	$(MAKE) build-ios VARIANT=$*
 
 # The widget showcase is a development preview: it never uses a staging or
 # production config (WidgetShowcaseRoutes refuses production anyway).
@@ -82,4 +118,5 @@ build-showcase:
 	$(DART) run tool/check_env.dart config/env/showcase.json
 	$(FLUTTER) build web --release \
 		--dart-define-from-file=config/env/showcase.json \
+		--dart-define=APP_VARIANT=user \
 		--base-href $(BASE_HREF)

@@ -3,7 +3,9 @@
 How tests are organized and written in the Proxy Care client. Run them with
 `make test` (all), `flutter test test/core/network` (a folder) or
 `flutter test --tags golden` (goldens only). CI runs everything on every
-push; nothing touches the network.
+push; nothing touches the network. Run `make test` / `flutter test` without
+`--dart-define`s: `env_test` and `app_variant_test` check that a build with
+no defines fails.
 
 ## Layout
 
@@ -32,7 +34,7 @@ packages: add one only when these cannot express a test.
 
 | Need | Use |
 | --- | --- |
-| A configured container | `createTestContainer(env:, overrides:)` (`helpers/provider_container.dart`): wired like the app, disposed after the test |
+| A configured container | `createTestContainer(env:, variant:, overrides:)` (`helpers/provider_container.dart`): wired like the app (variant defaults to the User app), disposed after the test |
 | Test configuration | `testEnv(...)` (`fixtures/env_fixtures.dart`): a valid development `Env`; override only what the test cares about |
 | HTTP responses | `FakeHttpAdapter` with `respondJson`, `dataBody`, `pageMeta`, `respondProblem`, `problemBody`, `fieldError`; it records every attempt (`requests`) |
 | The networking stack | `NetworkHarness` (`helpers/network_harness.dart`) |

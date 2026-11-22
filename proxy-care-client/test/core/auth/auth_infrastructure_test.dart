@@ -11,6 +11,7 @@ import 'package:proxy_care_client/core/auth/biometric_gate.dart';
 import 'package:proxy_care_client/core/auth/session_token_recovery.dart';
 import 'package:proxy_care_client/core/auth/supabase/secure_supabase_storage.dart';
 import 'package:proxy_care_client/core/auth/supabase/supabase_initializer.dart';
+import 'package:proxy_care_client/core/config/app_variant.dart';
 import 'package:proxy_care_client/core/di/app_container.dart';
 import 'package:proxy_care_client/core/di/auth_providers.dart';
 import 'package:proxy_care_client/core/security/secure_key_value_store.dart';
@@ -266,6 +267,7 @@ void main() {
       final session = FakeAuthenticationSession();
       final container = createAppContainer(
         env: testEnv(),
+        variant: AppVariant.user,
         overrides: [authenticationSessionProvider.overrideWithValue(session)],
       );
       final seen = <AuthenticationState>[];

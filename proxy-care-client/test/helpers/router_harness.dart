@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:proxy_care_client/core/auth/authentication_state.dart';
 import 'package:proxy_care_client/core/auth/authorization/authorization.dart';
+import 'package:proxy_care_client/core/config/app_variant.dart';
 import 'package:proxy_care_client/core/di/app_container.dart';
 import 'package:proxy_care_client/core/di/auth_providers.dart';
 import 'package:proxy_care_client/core/di/router_providers.dart';
@@ -261,6 +262,7 @@ final class RouterHarness {
     final module = TestRouteModule();
     final container = createAppContainer(
       env: testEnv(featureFlags: featureFlags),
+      variant: AppVariant.user,
       overrides: [
         authenticationSessionProvider.overrideWithValue(session),
         routeModulesProvider.overrideWithValue([module]),

@@ -15,8 +15,8 @@ import 'core_providers.dart';
 // `lib/app_routes.dart` overrides at start-up.
 
 /// Every feature's route module. Empty by default; `main.dart` overrides it
-/// with `enabledRouteModules(env)` from `lib/app_routes.dart`, and tests
-/// override it with test modules.
+/// with `routeModulesFor(variant, env)` from `lib/app_routes.dart`, and
+/// tests override it with test modules.
 final routeModulesProvider = Provider<List<RouteModule>>((ref) => const []);
 
 /// App-wide router settings (redirect destinations, deep links, fallbacks).

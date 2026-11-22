@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:proxy_care_client/app.dart';
 import 'package:proxy_care_client/core/auth/authentication_state.dart';
 import 'package:proxy_care_client/core/config/app_environment.dart';
+import 'package:proxy_care_client/core/config/app_variant.dart';
 import 'package:proxy_care_client/core/di/auth_providers.dart';
 import 'package:proxy_care_client/core/di/bootstrap.dart';
 import 'package:proxy_care_client/core/di/core_providers.dart';
@@ -73,6 +74,7 @@ Future<_App> _launch(
   )..currentState = auth;
   final http = FakeHttpAdapter()..fallback = respondJson(dataBody(null));
   final container = await bootstrap(
+    variant: AppVariant.user,
     overrides: [
       authenticationSessionProvider.overrideWithValue(session),
       routeModulesProvider.overrideWithValue([TestRouteModule()]),

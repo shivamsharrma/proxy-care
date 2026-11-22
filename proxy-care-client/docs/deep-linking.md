@@ -73,6 +73,11 @@ Domain verification:
    `adb shell pm verify-app-links --re-verify <ANDROID_APPLICATION_ID>`.
 3. Test: `adb shell am start -a android.intent.action.VIEW -d "https://<APP_LINK_DOMAIN>/<path>"`.
 
+Both Android flavors (`com.proxycare.user`, `com.proxycare.caretaker`)
+currently share this one `appLinkHost` filter, which is harmless with the
+placeholder host. Before a real domain goes live, give each flavor its own
+host or path prefix, and list both package names in `assetlinks.json`.
+
 ## iOS Universal Links
 
 `FlutterDeepLinkingEnabled` is set in `Info.plist` and

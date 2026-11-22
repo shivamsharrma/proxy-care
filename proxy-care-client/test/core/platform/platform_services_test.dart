@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:proxy_care_client/core/auth/authentication_state.dart';
+import 'package:proxy_care_client/core/config/app_variant.dart';
 import 'package:proxy_care_client/core/connectivity/connectivity_monitor.dart';
 import 'package:proxy_care_client/core/di/app_container.dart';
 import 'package:proxy_care_client/core/di/auth_providers.dart';
@@ -122,6 +123,7 @@ void main() {
       final monitor = _FakeMonitor();
       final container = createAppContainer(
         env: testEnv(),
+        variant: AppVariant.user,
         overrides: [connectivityMonitorProvider.overrideWithValue(monitor)],
       );
       addTearDown(container.dispose);
@@ -158,7 +160,10 @@ void main() {
     testWidgets('services can follow the phase without widgets', (
       tester,
     ) async {
-      final container = createAppContainer(env: testEnv());
+      final container = createAppContainer(
+        env: testEnv(),
+        variant: AppVariant.user,
+      );
       addTearDown(container.dispose);
       final phases = <AppLifecyclePhase>[];
       container.listen(
@@ -197,6 +202,7 @@ void main() {
         ..currentState = auth ?? const Unauthenticated();
       final container = createAppContainer(
         env: testEnv(),
+        variant: AppVariant.user,
         overrides: [
           authenticationSessionProvider.overrideWithValue(session),
           pushMessagingServiceProvider.overrideWithValue(push),

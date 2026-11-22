@@ -20,7 +20,7 @@ proxy-care-client/maestro/
 
 ## Translating a scenario
 ```yaml
-appId: com.proxycare.client
+appId: com.proxycare.caretaker   # each flow names its app: com.proxycare.user or com.proxycare.caretaker
 name: "P9a shows the fare and that the request was sent"
 tags: [regression, caretaker-app, pickup-and-ride, P9a, payments, smoke, happy-path]
 # spec: atdd/test-specs/pickup-and-ride/05_caretaker_ride_payment.feature

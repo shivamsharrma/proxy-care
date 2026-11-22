@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:proxy_care_client/core/config/app_environment.dart';
 import 'package:proxy_care_client/core/di/bootstrap.dart';
 import 'package:proxy_care_client/core/auth/authentication_state.dart';
+import 'package:proxy_care_client/core/config/app_variant.dart';
 import 'package:proxy_care_client/core/di/auth_providers.dart';
 import 'package:proxy_care_client/core/di/core_providers.dart';
 
@@ -18,7 +19,7 @@ void main() {
       PlatformDispatcher.instance.onError = previousPlatformHandler;
     });
 
-    final container = await bootstrap();
+    final container = await bootstrap(variant: AppVariant.user);
     addTearDown(container.dispose);
 
     // Tests run without --dart-define, so the development defaults apply.

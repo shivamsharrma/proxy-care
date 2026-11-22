@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/app_environment.dart';
+import '../config/app_variant.dart';
 import '../config/env.dart';
 import '../error/crash_reporter.dart';
 import '../error/error_mapper.dart';
@@ -29,6 +30,18 @@ import '../observability/performance_monitor.dart';
 final envProvider = Provider<Env>(
   (ref) => throw UnimplementedError(
     'envProvider has no default; override it (see createAppContainer).',
+  ),
+);
+
+/// Which app this build is (User or Caretaker).
+///
+/// Has no default value: `createAppContainer` overrides it with the
+/// `AppVariant` read at start-up, and tests override it with the variant
+/// they need.
+/// Reading it without an override is a wiring bug.
+final appVariantProvider = Provider<AppVariant>(
+  (ref) => throw UnimplementedError(
+    'appVariantProvider has no default; override it (see createAppContainer).',
   ),
 );
 
