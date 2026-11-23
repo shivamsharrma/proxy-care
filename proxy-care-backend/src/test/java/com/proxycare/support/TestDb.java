@@ -60,6 +60,37 @@ public class TestDb {
         return jdbcTemplate.queryForObject("select preferred_language from profiles where id = ?", String.class, profileId);
     }
 
+    /** Inserts an app_users row for an existing profile; sex is the enum name (FEMALE, MALE, OTHER). Returns its id. */
+    public UUID insertAppUser(UUID profileId, String fullName, String sex, Integer age, String address) {
+        return jdbcTemplate.queryForObject(
+                """
+                insert into app_users (profile_id, full_name, sex, age, address, created_at, updated_at)
+                values (?, ?, ?::sex_type, ?::smallint, ?, now(), now())
+                returning id
+                """,
+                UUID.class,
+                profileId,
+                fullName,
+                sex,
+                age,
+                address);
+    }
+
+    /** The stored app_users row of a profile, or null when it has none. */
+    public AppUserRow appUserOf(UUID profileId) {
+        List<AppUserRow> appUserRows = jdbcTemplate.query(
+                "select id, profile_id, full_name, sex::text, age, address from app_users where profile_id = ?",
+                (resultSet, rowNumber) -> new AppUserRow(
+                        resultSet.getObject("id", UUID.class),
+                        resultSet.getObject("profile_id", UUID.class),
+                        resultSet.getString("full_name"),
+                        resultSet.getString("sex"),
+                        resultSet.getObject("age", Integer.class),
+                        resultSet.getString("address")),
+                profileId);
+        return appUserRows.isEmpty() ? null : appUserRows.get(0);
+    }
+
     /** Row count of a table; {@code table} is a literal from test code, e.g. "auth.users". */
     public long count(String table) {
         return jdbcTemplate.queryForObject("select count(*) from " + table, Long.class);

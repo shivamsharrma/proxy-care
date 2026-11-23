@@ -29,7 +29,16 @@ class RlsEnabledTest extends IntegrationTest {
                     rls.put(rs.getString(1), rs.getBoolean(2));
                 });
 
-        assertThat(rls).containsKey("profiles");
+        assertThat(rls).containsKeys("profiles", "app_users");
         assertThat(rls).allSatisfy((table, enabled) -> assertThat(enabled).as("RLS on %s", table).isTrue());
+    }
+
+    // The caretaker-photos Storage policies live in the storage schema, so they are not counted here.
+    @Test
+    void noPublicTableHasAPolicy() {
+        Long policyCount = jdbcTemplate.queryForObject(
+                "select count(*) from pg_policies where schemaname = 'public'", Long.class);
+
+        assertThat(policyCount).isZero();
     }
 }

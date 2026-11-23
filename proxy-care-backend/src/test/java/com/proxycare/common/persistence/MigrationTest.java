@@ -62,6 +62,47 @@ class MigrationTest extends IntegrationTest {
     }
 
     @Test
+    void appUsersMigrationApplied() {
+        Long appliedCount = jdbcTemplate.queryForObject(
+                "select count(*) from flyway_schema_history where success and version = '6'", Long.class);
+
+        assertThat(appliedCount).isEqualTo(1);
+    }
+
+    @Test
+    void sexTypeHoldsTheSexEnumNames() {
+        List<String> sexTypeLabels = jdbcTemplate.queryForList(
+                """
+                select e.enumlabel from pg_enum e join pg_type t on t.oid = e.enumtypid
+                where t.typname = 'sex_type' order by e.enumsortorder
+                """,
+                String.class);
+
+        assertThat(sexTypeLabels).containsExactly("FEMALE", "MALE", "OTHER");
+    }
+
+    @Test
+    void appUsersHaveTheBaseEntityAndProfileColumns() {
+        List<String> appUserColumns = jdbcTemplate.queryForList(
+                """
+                select column_name || ' ' || udt_name || ' ' || is_nullable from information_schema.columns
+                where table_schema = 'public' and table_name = 'app_users'
+                """,
+                String.class);
+
+        assertThat(appUserColumns).containsExactlyInAnyOrder(
+                "id uuid NO",
+                "created_at timestamptz NO",
+                "updated_at timestamptz NO",
+                "version int8 NO",
+                "profile_id uuid NO",
+                "full_name text NO",
+                "sex sex_type NO",
+                "age int2 YES",
+                "address text NO");
+    }
+
+    @Test
     void postgisExtensionExists() {
         assertThat(jdbcTemplate.queryForObject("select count(*) from pg_extension where extname = 'postgis'", Long.class))
                 .isEqualTo(1);
