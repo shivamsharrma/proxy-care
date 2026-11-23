@@ -4,6 +4,7 @@ import static com.proxycare.support.ApiErrorAssert.assertApiError;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -24,7 +25,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-/** 04_user_profile.feature (Screen 04, User profile Stage A): GET / PUT /api/v1/users/me. */
+/** 04_user_profile.feature (Screen 04, User profile Stage A): GET / POST / PUT /api/v1/users/me. */
 class AppUserControllerTest extends IntegrationTest {
 
     private static final String PHONE = "+919876543210";
@@ -68,15 +69,15 @@ class AppUserControllerTest extends IntegrationTest {
 
     private final UUID userId = UUID.randomUUID();
 
-    // ---- PUT /api/v1/users/me ----
+    // ---- POST /api/v1/users/me ----
 
     // Scenario: Completing the profile with a typed address
     @Test
     void savesTheCallersProfile() throws Exception {
         testDb.insertProfile(userId, PHONE, "USER");
 
-        putAppUser(appUserBody(RAHUL, "MALE", 34, RAHUL_ADDRESS))
-                .andExpect(status().isOk())
+        postAppUser(appUserBody(RAHUL, "MALE", 34, RAHUL_ADDRESS))
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.fullName").value(RAHUL))
                 .andExpect(jsonPath("$.sex").value("MALE"))
                 .andExpect(jsonPath("$.age").value(34))
@@ -97,8 +98,8 @@ class AppUserControllerTest extends IntegrationTest {
     void savesWithoutAge() throws Exception {
         testDb.insertProfile(userId, PHONE, "USER");
 
-        putAppUser(appUserBody(PRIYA, "FEMALE", null, PRIYA_ADDRESS))
-                .andExpect(status().isOk())
+        postAppUser(appUserBody(PRIYA, "FEMALE", null, PRIYA_ADDRESS))
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.fullName").value(PRIYA))
                 .andExpect(jsonPath("$.sex").value("FEMALE"))
                 .andExpect(jsonPath("$.age").value(nullValue()))
@@ -117,8 +118,8 @@ class AppUserControllerTest extends IntegrationTest {
     void savesTheOtherSex() throws Exception {
         testDb.insertProfile(userId, PHONE, "USER");
 
-        putAppUser(appUserBody(RAHUL, "OTHER", 34, RAHUL_ADDRESS))
-                .andExpect(status().isOk())
+        postAppUser(appUserBody(RAHUL, "OTHER", 34, RAHUL_ADDRESS))
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.sex").value("OTHER"));
 
         assertThat(testDb.appUserOf(userId).sex()).isEqualTo("OTHER");
@@ -129,8 +130,8 @@ class AppUserControllerTest extends IntegrationTest {
     void trimsTheName() throws Exception {
         testDb.insertProfile(userId, PHONE, "USER");
 
-        putAppUser(appUserBody("  Rahul Sharma  ", "MALE", 34, RAHUL_ADDRESS))
-                .andExpect(status().isOk())
+        postAppUser(appUserBody("  Rahul Sharma  ", "MALE", 34, RAHUL_ADDRESS))
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.fullName").value(RAHUL));
 
         assertThat(testDb.appUserOf(userId).fullName()).isEqualTo(RAHUL);
@@ -141,8 +142,8 @@ class AppUserControllerTest extends IntegrationTest {
     void savesAHindiName() throws Exception {
         testDb.insertProfile(userId, PHONE, "USER");
 
-        putAppUser(appUserBody(RAHUL_IN_HINDI, "MALE", 34, RAHUL_ADDRESS))
-                .andExpect(status().isOk())
+        postAppUser(appUserBody(RAHUL_IN_HINDI, "MALE", 34, RAHUL_ADDRESS))
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.fullName").value(RAHUL_IN_HINDI));
 
         assertThat(testDb.appUserOf(userId).fullName()).isEqualTo(RAHUL_IN_HINDI);
@@ -152,56 +153,25 @@ class AppUserControllerTest extends IntegrationTest {
     }
 
     @Test
-    void savingAgainUpdatesTheSameRow() throws Exception {
+    void creatingTwiceIsAppUserAlreadyExists() throws Exception {
         testDb.insertProfile(userId, PHONE, "USER");
-        UUID appUserId = testDb.insertAppUser(userId, RAHUL, "MALE", 34, RAHUL_ADDRESS);
+        postAppUser(appUserBody(RAHUL, "MALE", 34, RAHUL_ADDRESS)).andExpect(status().isCreated());
 
-        putAppUser(appUserBody(PRIYA, "FEMALE", 40, PRIYA_ADDRESS))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.fullName").value(PRIYA))
-                .andExpect(jsonPath("$.sex").value("FEMALE"))
-                .andExpect(jsonPath("$.age").value(40))
-                .andExpect(jsonPath("$.address").value(PRIYA_ADDRESS))
-                .andExpect(jsonPath("$.phone").value(PHONE));
+        assertApiError(postAppUser(appUserBody(PRIYA, "FEMALE", 40, PRIYA_ADDRESS)), 409, "APP_USER_ALREADY_EXISTS");
 
+        assertThat(testDb.count("app_users")).isEqualTo(1);
         AppUserRow appUserRow = testDb.appUserOf(userId);
-        assertThat(testDb.count("app_users")).isEqualTo(1);
-        assertThat(appUserRow.id()).isEqualTo(appUserId);
-        assertThat(appUserRow.fullName()).isEqualTo(PRIYA);
-        assertThat(appUserRow.sex()).isEqualTo("FEMALE");
-        assertThat(appUserRow.age()).isEqualTo(40);
-        assertThat(appUserRow.address()).isEqualTo(PRIYA_ADDRESS);
-    }
-
-    @Test
-    void savingTwiceThroughTheApiKeepsOneRow() throws Exception {
-        testDb.insertProfile(userId, PHONE, "USER");
-
-        putAppUser(appUserBody(RAHUL, "MALE", 34, RAHUL_ADDRESS)).andExpect(status().isOk());
-        putAppUser(appUserBody(RAHUL, "MALE", 35, RAHUL_ADDRESS)).andExpect(status().isOk());
-
-        assertThat(testDb.count("app_users")).isEqualTo(1);
-        assertThat(testDb.appUserOf(userId).age()).isEqualTo(35);
-    }
-
-    // PUT replaces the profile: an age left out on a later save is cleared.
-    @Test
-    void savingAgainWithoutAgeClearsTheAge() throws Exception {
-        testDb.insertProfile(userId, PHONE, "USER");
-        testDb.insertAppUser(userId, RAHUL, "MALE", 34, RAHUL_ADDRESS);
-
-        putAppUser(appUserBody(RAHUL, "MALE", null, RAHUL_ADDRESS))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.age").value(nullValue()));
-
-        assertThat(testDb.appUserOf(userId).age()).isNull();
+        assertThat(appUserRow.fullName()).isEqualTo(RAHUL);
+        assertThat(appUserRow.sex()).isEqualTo("MALE");
+        assertThat(appUserRow.age()).isEqualTo(34);
+        assertThat(appUserRow.address()).isEqualTo(RAHUL_ADDRESS);
     }
 
     @Test
     void userWhoIsAlsoACaretakerCanSaveTheirProfile() throws Exception {
         testDb.insertProfile(userId, PHONE, "CARETAKER", "USER");
 
-        putAppUser(appUserBody(RAHUL, "MALE", 34, RAHUL_ADDRESS)).andExpect(status().isOk());
+        postAppUser(appUserBody(RAHUL, "MALE", 34, RAHUL_ADDRESS)).andExpect(status().isCreated());
 
         assertThat(testDb.appUserOf(userId)).isNotNull();
     }
@@ -233,8 +203,8 @@ class AppUserControllerTest extends IntegrationTest {
     void acceptsValidFullNames(String fullName) throws Exception {
         testDb.insertProfile(userId, PHONE, "USER");
 
-        putAppUser(appUserBody(fullName, "MALE", 34, RAHUL_ADDRESS))
-                .andExpect(status().isOk())
+        postAppUser(appUserBody(fullName, "MALE", 34, RAHUL_ADDRESS))
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.fullName").value(fullName.trim()));
     }
 
@@ -259,8 +229,8 @@ class AppUserControllerTest extends IntegrationTest {
     void acceptsBoundaryAges(int age) throws Exception {
         testDb.insertProfile(userId, PHONE, "USER");
 
-        putAppUser(appUserBody(RAHUL, "MALE", age, RAHUL_ADDRESS))
-                .andExpect(status().isOk())
+        postAppUser(appUserBody(RAHUL, "MALE", age, RAHUL_ADDRESS))
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.age").value(age));
 
         assertThat(testDb.appUserOf(userId).age()).isEqualTo(age);
@@ -279,7 +249,7 @@ class AppUserControllerTest extends IntegrationTest {
     void rejectsUnknownSex(String sex) throws Exception {
         testDb.insertProfile(userId, PHONE, "USER");
 
-        assertApiError(putAppUser(appUserBody(RAHUL, sex, 34, RAHUL_ADDRESS)), 400, "MALFORMED_REQUEST");
+        assertApiError(postAppUser(appUserBody(RAHUL, sex, 34, RAHUL_ADDRESS)), 400, "MALFORMED_REQUEST");
 
         assertThat(testDb.count("app_users")).isZero();
     }
@@ -306,23 +276,9 @@ class AppUserControllerTest extends IntegrationTest {
         testDb.insertProfile(userId, PHONE, "USER");
         String address = "a".repeat(300);
 
-        putAppUser(appUserBody(RAHUL, "MALE", 34, address)).andExpect(status().isOk());
+        postAppUser(appUserBody(RAHUL, "MALE", 34, address)).andExpect(status().isCreated());
 
         assertThat(testDb.appUserOf(userId).address()).isEqualTo(address);
-    }
-
-    @Test
-    void invalidSaveLeavesTheStoredProfileUnchanged() throws Exception {
-        testDb.insertProfile(userId, PHONE, "USER");
-        testDb.insertAppUser(userId, RAHUL, "MALE", 34, RAHUL_ADDRESS);
-
-        assertApiError(putAppUser(appUserBody("R", "FEMALE", 17, "")), 400, "VALIDATION_FAILED");
-
-        AppUserRow appUserRow = testDb.appUserOf(userId);
-        assertThat(appUserRow.fullName()).isEqualTo(RAHUL);
-        assertThat(appUserRow.sex()).isEqualTo("MALE");
-        assertThat(appUserRow.age()).isEqualTo(34);
-        assertThat(appUserRow.address()).isEqualTo(RAHUL_ADDRESS);
     }
 
     // Screen 04: the mobile is prefilled, verified and read-only, so it comes from the profile, never the body.
@@ -335,8 +291,8 @@ class AppUserControllerTest extends IntegrationTest {
         appUserFields.put("phone", OTHER_PHONE);
         appUserFields.put("profileId", someoneElsesId.toString());
 
-        putAppUser(objectMapper.writeValueAsString(appUserFields))
-                .andExpect(status().isOk())
+        postAppUser(objectMapper.writeValueAsString(appUserFields))
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.phone").value(PHONE));
 
         assertThat(testDb.appUserOf(userId)).isNotNull();
@@ -347,8 +303,8 @@ class AppUserControllerTest extends IntegrationTest {
 
     // Signed in but no profiles row yet (no role chosen), so the caller has no USER role.
     @Test
-    void putWithoutAProfileIsAccessDenied() throws Exception {
-        assertApiError(putAppUser(appUserBody(RAHUL, "MALE", 34, RAHUL_ADDRESS)), 403, "ACCESS_DENIED");
+    void postWithoutAProfileIsAccessDenied() throws Exception {
+        assertApiError(postAppUser(appUserBody(RAHUL, "MALE", 34, RAHUL_ADDRESS)), 403, "ACCESS_DENIED");
 
         assertThat(testDb.count("app_users")).isZero();
     }
@@ -357,15 +313,15 @@ class AppUserControllerTest extends IntegrationTest {
     void caretakerCannotSaveAUserProfile() throws Exception {
         testDb.insertProfile(userId, PHONE, "CARETAKER");
 
-        assertApiError(putAppUser(appUserBody(RAHUL, "MALE", 34, RAHUL_ADDRESS)), 403, "ACCESS_DENIED");
+        assertApiError(postAppUser(appUserBody(RAHUL, "MALE", 34, RAHUL_ADDRESS)), 403, "ACCESS_DENIED");
 
         assertThat(testDb.count("app_users")).isZero();
     }
 
     @Test
-    void putNeedsAToken() throws Exception {
+    void postNeedsAToken() throws Exception {
         testDb.insertProfile(userId, PHONE, "USER");
-        MockHttpServletRequestBuilder mockHttpServletRequestBuilder = put(ME_PATH)
+        MockHttpServletRequestBuilder mockHttpServletRequestBuilder = post(ME_PATH)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(appUserBody(RAHUL, "MALE", 34, RAHUL_ADDRESS));
 
@@ -381,16 +337,123 @@ class AppUserControllerTest extends IntegrationTest {
         UUID someoneElsesAppUserId = testDb.insertAppUser(someoneElsesId, PRIYA, "FEMALE", 40, PRIYA_ADDRESS);
         testDb.insertProfile(userId, PHONE, "USER");
 
-        putAppUser(appUserBody(RAHUL, "MALE", 34, RAHUL_ADDRESS)).andExpect(status().isOk());
+        postAppUser(appUserBody(RAHUL, "MALE", 34, RAHUL_ADDRESS)).andExpect(status().isCreated());
 
         assertThat(testDb.count("app_users")).isEqualTo(2);
-        AppUserRow someoneElsesAppUserRow = testDb.appUserOf(someoneElsesId);
-        assertThat(someoneElsesAppUserRow.id()).isEqualTo(someoneElsesAppUserId);
-        assertThat(someoneElsesAppUserRow.fullName()).isEqualTo(PRIYA);
-        assertThat(someoneElsesAppUserRow.sex()).isEqualTo("FEMALE");
-        assertThat(someoneElsesAppUserRow.age()).isEqualTo(40);
-        assertThat(someoneElsesAppUserRow.address()).isEqualTo(PRIYA_ADDRESS);
+        assertSomeoneElsesAppUserUnchanged(someoneElsesId, someoneElsesAppUserId);
         assertThat(testDb.appUserOf(userId).fullName()).isEqualTo(RAHUL);
+    }
+
+    // ---- PUT /api/v1/users/me ----
+
+    @Test
+    void updateReplacesTheSavedProfile() throws Exception {
+        testDb.insertProfile(userId, PHONE, "USER");
+        UUID appUserId = testDb.insertAppUser(userId, RAHUL, "MALE", 34, RAHUL_ADDRESS);
+
+        putAppUser(appUserBody(PRIYA, "FEMALE", 40, PRIYA_ADDRESS))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fullName").value(PRIYA))
+                .andExpect(jsonPath("$.sex").value("FEMALE"))
+                .andExpect(jsonPath("$.age").value(40))
+                .andExpect(jsonPath("$.address").value(PRIYA_ADDRESS))
+                .andExpect(jsonPath("$.phone").value(PHONE));
+
+        AppUserRow appUserRow = testDb.appUserOf(userId);
+        assertThat(testDb.count("app_users")).isEqualTo(1);
+        assertThat(appUserRow.id()).isEqualTo(appUserId);
+        assertThat(appUserRow.fullName()).isEqualTo(PRIYA);
+        assertThat(appUserRow.sex()).isEqualTo("FEMALE");
+        assertThat(appUserRow.age()).isEqualTo(40);
+        assertThat(appUserRow.address()).isEqualTo(PRIYA_ADDRESS);
+    }
+
+    // PUT replaces the profile: an age left out on a later save is cleared.
+    @Test
+    void updatingWithoutAgeClearsTheAge() throws Exception {
+        testDb.insertProfile(userId, PHONE, "USER");
+        testDb.insertAppUser(userId, RAHUL, "MALE", 34, RAHUL_ADDRESS);
+
+        putAppUser(appUserBody(RAHUL, "MALE", null, RAHUL_ADDRESS))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.age").value(nullValue()));
+
+        assertThat(testDb.appUserOf(userId).age()).isNull();
+    }
+
+    @Test
+    void updatingBeforeCreatingIsAppUserNotFound() throws Exception {
+        testDb.insertProfile(userId, PHONE, "USER");
+
+        assertApiError(putAppUser(appUserBody(RAHUL, "MALE", 34, RAHUL_ADDRESS)), 404, "APP_USER_NOT_FOUND");
+
+        assertThat(testDb.count("app_users")).isZero();
+    }
+
+    @Test
+    void updateRejectsInvalidFullName() throws Exception {
+        testDb.insertProfile(userId, PHONE, "USER");
+        testDb.insertAppUser(userId, RAHUL, "MALE", 34, RAHUL_ADDRESS);
+
+        assertApiError(putAppUser(appUserBody("R", "MALE", 34, RAHUL_ADDRESS)), 400, "VALIDATION_FAILED")
+                .andExpect(jsonPath("$.fieldErrors.fullName").exists());
+
+        assertStoredAppUserIsRahul();
+    }
+
+    @Test
+    void invalidSaveLeavesTheStoredProfileUnchanged() throws Exception {
+        testDb.insertProfile(userId, PHONE, "USER");
+        testDb.insertAppUser(userId, RAHUL, "MALE", 34, RAHUL_ADDRESS);
+
+        assertApiError(putAppUser(appUserBody("R", "FEMALE", 17, "")), 400, "VALIDATION_FAILED");
+
+        assertStoredAppUserIsRahul();
+    }
+
+    // Signed in but no profiles row yet (no role chosen), so the caller has no USER role.
+    @Test
+    void putWithoutAProfileIsAccessDenied() throws Exception {
+        assertApiError(putAppUser(appUserBody(RAHUL, "MALE", 34, RAHUL_ADDRESS)), 403, "ACCESS_DENIED");
+
+        assertThat(testDb.count("app_users")).isZero();
+    }
+
+    // A row is seeded so a 403 here cannot be the 404 of a missing row.
+    @Test
+    void caretakerCannotUpdateAUserProfile() throws Exception {
+        testDb.insertProfile(userId, PHONE, "CARETAKER");
+        testDb.insertAppUser(userId, RAHUL, "MALE", 34, RAHUL_ADDRESS);
+
+        assertApiError(putAppUser(appUserBody(PRIYA, "FEMALE", 40, PRIYA_ADDRESS)), 403, "ACCESS_DENIED");
+
+        assertStoredAppUserIsRahul();
+    }
+
+    @Test
+    void putNeedsAToken() throws Exception {
+        testDb.insertProfile(userId, PHONE, "USER");
+        MockHttpServletRequestBuilder mockHttpServletRequestBuilder = put(ME_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(appUserBody(RAHUL, "MALE", 34, RAHUL_ADDRESS));
+
+        assertApiError(mockMvc.perform(mockHttpServletRequestBuilder), 401, "UNAUTHENTICATED");
+
+        assertThat(testDb.count("app_users")).isZero();
+    }
+
+    @Test
+    void updatingNeverChangesSomeoneElsesProfile() throws Exception {
+        UUID someoneElsesId = UUID.randomUUID();
+        testDb.insertProfile(someoneElsesId, OTHER_PHONE, "USER");
+        UUID someoneElsesAppUserId = testDb.insertAppUser(someoneElsesId, PRIYA, "FEMALE", 40, PRIYA_ADDRESS);
+        testDb.insertProfile(userId, PHONE, "USER");
+
+        assertApiError(putAppUser(appUserBody(RAHUL, "MALE", 34, RAHUL_ADDRESS)), 404, "APP_USER_NOT_FOUND");
+
+        assertThat(testDb.count("app_users")).isEqualTo(1);
+        assertSomeoneElsesAppUserUnchanged(someoneElsesId, someoneElsesAppUserId);
+        assertThat(testDb.appUserOf(userId)).isNull();
     }
 
     // ---- GET /api/v1/users/me ----
@@ -456,14 +519,39 @@ class AppUserControllerTest extends IntegrationTest {
     }
 
     private void assertRejected(String appUserBody, String field) throws Exception {
-        assertApiError(putAppUser(appUserBody), 400, "VALIDATION_FAILED")
+        assertApiError(postAppUser(appUserBody), 400, "VALIDATION_FAILED")
                 .andExpect(jsonPath("$.fieldErrors." + field).exists());
 
         assertThat(testDb.count("app_users")).isZero();
     }
 
+    private void assertStoredAppUserIsRahul() {
+        AppUserRow appUserRow = testDb.appUserOf(userId);
+        assertThat(testDb.count("app_users")).isEqualTo(1);
+        assertThat(appUserRow.fullName()).isEqualTo(RAHUL);
+        assertThat(appUserRow.sex()).isEqualTo("MALE");
+        assertThat(appUserRow.age()).isEqualTo(34);
+        assertThat(appUserRow.address()).isEqualTo(RAHUL_ADDRESS);
+    }
+
+    private void assertSomeoneElsesAppUserUnchanged(UUID someoneElsesId, UUID someoneElsesAppUserId) {
+        AppUserRow someoneElsesAppUserRow = testDb.appUserOf(someoneElsesId);
+        assertThat(someoneElsesAppUserRow.id()).isEqualTo(someoneElsesAppUserId);
+        assertThat(someoneElsesAppUserRow.fullName()).isEqualTo(PRIYA);
+        assertThat(someoneElsesAppUserRow.sex()).isEqualTo("FEMALE");
+        assertThat(someoneElsesAppUserRow.age()).isEqualTo(40);
+        assertThat(someoneElsesAppUserRow.address()).isEqualTo(PRIYA_ADDRESS);
+    }
+
     private ResultActions getAppUser() throws Exception {
         return mockMvc.perform(get(ME_PATH).header("Authorization", callerToken()));
+    }
+
+    private ResultActions postAppUser(String appUserBody) throws Exception {
+        return mockMvc.perform(post(ME_PATH)
+                .header("Authorization", callerToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(appUserBody));
     }
 
     private ResultActions putAppUser(String appUserBody) throws Exception {
