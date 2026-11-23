@@ -30,12 +30,17 @@ or event (`security.md` → PII).
   values is an enum (`@NotNull Role role`, `@NotNull PreferredLanguage
   preferredLanguage`), never a `String` + `@Pattern`.
 - Service methods return the response DTO (`ProfileResponse`), never a
-  result wrapper; controller methods return that DTO directly (200), no
-  `ResponseEntity` unless the spec asks for another status.
-- Create-or-update of the caller's own resource is one `PUT` endpoint
-  (`PUT /api/v1/profile/me`), not separate create and update endpoints.
-  The service reads as one flow: find the entity or build a new one, apply
-  the request through setters, save, map
+  result wrapper; controller methods return that DTO directly (200, or 201
+  via `@ResponseStatus(HttpStatus.CREATED)` for a create), no
+  `ResponseEntity`.
+- Create is `POST` (201); creating one that already exists is 409 with the
+  feature's `*_ALREADY_EXISTS` code. Update is `PUT`, a full replace (200);
+  updating one that doesn't exist yet is 404 with the feature's not-found
+  code (`AppUserController`). Each service method reads as one flow: find
+  or check, build or load, apply the request through setters, save, map
+  (`AppUserService`).
+- Exception: `PUT /api/v1/profile/me` stays one create-or-update endpoint,
+  because sign-in creates the profile or adds the app's role from the token
   (`ProfileService.updateCurrentProfile`).
 - Mappers are `@Component`s with `to<Dto>(…)` methods (`ProfileMapper`).
 - Features talk to each other through a service interface or events
