@@ -29,6 +29,9 @@ public enum ErrorCode {
     // Profile
     PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND),
 
+    // User profile
+    APP_USER_NOT_FOUND(HttpStatus.NOT_FOUND),
+
     // External service errors
     EXTERNAL_SERVICE_ERROR(HttpStatus.BAD_GATEWAY),
     EXTERNAL_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE),
