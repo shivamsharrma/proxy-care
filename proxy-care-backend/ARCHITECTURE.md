@@ -15,7 +15,8 @@ Flutter apps ──(Supabase access token)──▶ this API ──▶ Supabase 
 com.proxycare
 ├── features/<feature>/          Business features, one package each, split by layer
 ├── infrastructure/<capability>/ Calls we make to vendors (payments, maps, rides), behind our own interfaces
-├── common/                      Cross-cutting: security, errors, API shapes, web filters, persistence base
+├── common/                      Cross-cutting: security, errors, API shapes, web filters, persistence base,
+│                                model/ (value enums shared by several features, e.g. Sex)
 └── config/                      App-wide wiring that belongs to no single feature
 ```
 

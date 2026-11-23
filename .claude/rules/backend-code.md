@@ -16,7 +16,8 @@ or event (`security.md` → PII).
 - `infrastructure/<capability>/`: the interface features depend on (business
   terms, no vendor names), its `model/` and `exception/`, and one sub-package
   per vendor (`razorpay/`) holding config, gateway, mapper and vendor DTOs.
-- `common/`: security, errors, API shapes, web filters, persistence base.
+- `common/`: security, errors, API shapes, web filters, persistence base,
+  and `model/` for value enums shared by several features (`Sex`).
 - `config/`: app-wide wiring that belongs to no single feature.
 - Dependencies point one way: `features` → `infrastructure` interfaces →
   `common` → `config`. Never the reverse.
