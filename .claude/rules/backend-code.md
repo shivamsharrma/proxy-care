@@ -17,7 +17,8 @@ or event (`security.md` → PII).
   terms, no vendor names), its `model/` and `exception/`, and one sub-package
   per vendor (`razorpay/`) holding config, gateway, mapper and vendor DTOs.
 - `common/`: security, errors, API shapes, web filters, persistence base,
-  and `model/` for value enums shared by several features (`Sex`).
+  `model/` for value types shared across features (`Sex`, `MobileNumber`),
+  and `validation/` for shared request rules (`PersonName`).
 - `config/`: app-wide wiring that belongs to no single feature.
 - Dependencies point one way: `features` → `infrastructure` interfaces →
   `common` → `config`. Never the reverse.

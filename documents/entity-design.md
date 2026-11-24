@@ -26,6 +26,10 @@ Target Postgres schema for the backend. Behaviour comes from the `.feature` spec
   lines are left out below.
 - Phone numbers are stored as `+91` followed by 10 digits starting with 6–9 (the DTO
   normalizes and checks this).
+- A mobile number entered in a form (e.g. a patient's mobile) is the value object
+  `MobileNumber{countryCode, number}` (backend `common/model`), stored in two columns
+  `<name>_country_code` and `<name>_number`: both null or both set. MVP: country code `+91`,
+  number 10 digits starting with 6–9 (the DTO checks this).
 - PII columns (names, phones, addresses, health notes, KYC and bank data, pickup codes,
   location) never appear in logs or event payloads.
 - **No location coordinates in the MVP** for users and patients: addresses are text only.
@@ -118,7 +122,9 @@ create table patients (
   full_name    text not null,
   age          smallint not null,
   sex          sex_type not null,
-  mobile       text,                                                    -- optional; receives the pickup code
+  mobile_country_code text,                                             -- MobileNumber, optional;
+  mobile_number       text,                                             -- receives the pickup code
+  lives_at_user_address boolean not null,                               -- true: address copied from app_users
   address      text not null,
   mobility     mobility_category not null,
   health_notes text,

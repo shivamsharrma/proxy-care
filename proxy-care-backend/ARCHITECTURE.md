@@ -16,7 +16,8 @@ com.proxycare
 ├── features/<feature>/          Business features, one package each, split by layer
 ├── infrastructure/<capability>/ Calls we make to vendors (payments, maps, rides), behind our own interfaces
 ├── common/                      Cross-cutting: security, errors, API shapes, web filters, persistence base,
-│                                model/ (value enums shared by several features, e.g. Sex)
+│                                model/ (value types shared across features, e.g. Sex, MobileNumber),
+│                                validation/ (shared request rules, e.g. PersonName)
 └── config/                      App-wide wiring that belongs to no single feature
 ```
 
