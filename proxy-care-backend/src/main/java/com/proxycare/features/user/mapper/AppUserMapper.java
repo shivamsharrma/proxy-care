@@ -1,5 +1,6 @@
 package com.proxycare.features.user.mapper;
 
+import com.proxycare.features.user.dto.response.AppUserReferenceResponse;
 import com.proxycare.features.user.dto.response.AppUserResponse;
 import com.proxycare.features.user.entity.AppUserEntity;
 import org.springframework.stereotype.Component;
@@ -14,5 +15,9 @@ public class AppUserMapper {
                 appUserEntity.getAge(),
                 appUserEntity.getAddress(),
                 phone);
+    }
+
+    public AppUserReferenceResponse toAppUserReferenceResponse(AppUserEntity appUserEntity) {
+        return new AppUserReferenceResponse(appUserEntity.getId(), appUserEntity.getAddress());
     }
 }

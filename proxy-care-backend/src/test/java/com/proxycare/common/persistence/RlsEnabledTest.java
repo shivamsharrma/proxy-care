@@ -29,7 +29,7 @@ class RlsEnabledTest extends IntegrationTest {
                     rls.put(rs.getString(1), rs.getBoolean(2));
                 });
 
-        assertThat(rls).containsKeys("profiles", "app_users");
+        assertThat(rls).containsKeys("profiles", "app_users", "patients");
         assertThat(rls).allSatisfy((table, enabled) -> assertThat(enabled).as("RLS on %s", table).isTrue());
     }
 

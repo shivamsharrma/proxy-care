@@ -1,6 +1,9 @@
 package com.proxycare.support;
 
 import com.proxycare.features.profile.enums.PreferredLanguage;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -89,6 +92,87 @@ public class TestDb {
                         resultSet.getString("address")),
                 profileId);
         return appUserRows.isEmpty() ? null : appUserRows.get(0);
+    }
+
+    /**
+     * Inserts a live patients row for an existing app_users row, without mobile or health notes. relation, sex and
+     * mobility are the enum names (FATHER, MALE, WHEELCHAIR). A null argument is stored as null. Returns its id.
+     */
+    public UUID insertPatient(
+            UUID appUserId,
+            String relation,
+            String fullName,
+            Integer age,
+            String sex,
+            Boolean livesAtUserAddress,
+            String address,
+            String mobility,
+            Instant createdAt) {
+        OffsetDateTime createdAtUtc = OffsetDateTime.ofInstant(createdAt, ZoneOffset.UTC);
+        return jdbcTemplate.queryForObject(
+                """
+                insert into patients (user_id, relation, full_name, age, sex, lives_at_user_address, address,
+                                      mobility, created_at, updated_at)
+                values (?, ?::relation_type, ?, ?::smallint, ?::sex_type, ?::boolean, ?, ?::mobility_category, ?, ?)
+                returning id
+                """,
+                UUID.class,
+                appUserId,
+                relation,
+                fullName,
+                age,
+                sex,
+                livesAtUserAddress,
+                address,
+                mobility,
+                createdAtUtc,
+                createdAtUtc);
+    }
+
+    /**
+     * Inserts a valid live patient (FATHER, 68, MALE, WHEELCHAIR) added at {@code createdAt}. The address is
+     * stored as given: with {@code livesAtUserAddress} true, pass the owner's app_users address so the row is
+     * one the API could have written.
+     */
+    public UUID insertPatient(
+            UUID appUserId, String fullName, boolean livesAtUserAddress, String address, Instant createdAt) {
+        return insertPatient(
+                appUserId, "FATHER", fullName, 68, "MALE", livesAtUserAddress, address, "WHEELCHAIR", createdAt);
+    }
+
+    public void softDeletePatient(UUID patientId, Instant deletedAt) {
+        jdbcTemplate.update(
+                "update patients set deleted_at = ? where id = ?",
+                OffsetDateTime.ofInstant(deletedAt, ZoneOffset.UTC),
+                patientId);
+    }
+
+    /** The stored patients rows of an app_users row (soft-deleted included), oldest first. */
+    public List<PatientRow> patientsOf(UUID appUserId) {
+        return jdbcTemplate.query(
+                """
+                select id, user_id, relation::text, full_name, age, sex::text, mobile_country_code, mobile_number,
+                       lives_at_user_address, address, mobility::text, health_notes
+                from patients where user_id = ? order by created_at, id
+                """,
+                (resultSet, rowNumber) -> new PatientRow(
+                        resultSet.getObject("id", UUID.class),
+                        resultSet.getObject("user_id", UUID.class),
+                        resultSet.getString("relation"),
+                        resultSet.getString("full_name"),
+                        resultSet.getObject("age", Integer.class),
+                        resultSet.getString("sex"),
+                        resultSet.getString("mobile_country_code"),
+                        resultSet.getString("mobile_number"),
+                        resultSet.getObject("lives_at_user_address", Boolean.class),
+                        resultSet.getString("address"),
+                        resultSet.getString("mobility"),
+                        resultSet.getString("health_notes")),
+                appUserId);
+    }
+
+    public void setAppUserAddressForProfile(UUID profileId, String address) {
+        jdbcTemplate.update("update app_users set address = ? where profile_id = ?", address, profileId);
     }
 
     /** Row count of a table; {@code table} is a literal from test code, e.g. "auth.users". */

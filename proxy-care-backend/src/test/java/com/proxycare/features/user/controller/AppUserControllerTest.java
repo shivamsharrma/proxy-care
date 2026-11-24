@@ -224,6 +224,18 @@ class AppUserControllerTest extends IntegrationTest {
         assertRejected(appUserBody(RAHUL, "MALE", age, RAHUL_ADDRESS), "age");
     }
 
+    // Review B3a round 2: age is a whole number; Jackson rejects a JSON fraction before Bean Validation runs.
+    @Test
+    void rejectsAFractionalAge() throws Exception {
+        testDb.insertProfile(userId, PHONE, "USER");
+        Map<String, Object> appUserFields = appUserFields(RAHUL, "MALE", null, RAHUL_ADDRESS);
+        appUserFields.put("age", 34.5);
+
+        assertApiError(postAppUser(objectMapper.writeValueAsString(appUserFields)), 400, "MALFORMED_REQUEST");
+
+        assertThat(testDb.count("app_users")).isZero();
+    }
+
     @ParameterizedTest
     @ValueSource(ints = {18, 120})
     void acceptsBoundaryAges(int age) throws Exception {

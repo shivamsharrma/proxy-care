@@ -3,6 +3,7 @@ package com.proxycare.features.user.service;
 import com.proxycare.features.profile.dto.response.ProfileResponse;
 import com.proxycare.features.profile.service.IProfileService;
 import com.proxycare.features.user.dto.request.SaveAppUserRequest;
+import com.proxycare.features.user.dto.response.AppUserReferenceResponse;
 import com.proxycare.features.user.dto.response.AppUserResponse;
 import com.proxycare.features.user.entity.AppUserEntity;
 import com.proxycare.features.user.exception.AppUserAlreadyExistsException;
@@ -56,6 +57,15 @@ public class AppUserService implements IAppUserService {
 
         AppUserEntity savedAppUserEntity = appUserRepository.save(appUserEntity);
         return appUserMapper.toAppUserResponse(savedAppUserEntity, profileResponse.phone());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AppUserReferenceResponse getCurrentAppUserReference() {
+        ProfileResponse profileResponse = profileService.getCurrentProfile();
+        AppUserEntity appUserEntity = appUserRepository.findByProfileId(profileResponse.id())
+                .orElseThrow(AppUserNotFoundException::new);
+        return appUserMapper.toAppUserReferenceResponse(appUserEntity);
     }
 
     private static AppUserEntity buildAppUserEntityForProfile(UUID profileId) {

@@ -1,6 +1,7 @@
 package com.proxycare.features.user.service;
 
 import com.proxycare.features.user.dto.request.SaveAppUserRequest;
+import com.proxycare.features.user.dto.response.AppUserReferenceResponse;
 import com.proxycare.features.user.dto.response.AppUserResponse;
 
 public interface IAppUserService {
@@ -13,4 +14,7 @@ public interface IAppUserService {
 
     /** Fully replaces the caller's user profile (an omitted age is cleared); APP_USER_NOT_FOUND until it is created. */
     AppUserResponse updateCurrentAppUser(SaveAppUserRequest saveAppUserRequest);
+
+    /** The caller's owner id and current address, for other features; APP_USER_NOT_FOUND until it is created. */
+    AppUserReferenceResponse getCurrentAppUserReference();
 }
