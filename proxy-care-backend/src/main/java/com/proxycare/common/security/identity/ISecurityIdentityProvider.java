@@ -16,6 +16,7 @@ public interface ISecurityIdentityProvider {
     /** The caller; throws UNAUTHENTICATED when there is none. */
     AuthenticatedUser getAuthenticatedUser();
 
+    
     default UUID getAuthenticatedUserId() {
         return getAuthenticatedUser().userId();
     }

@@ -70,18 +70,6 @@ class MigrationTest extends IntegrationTest {
     }
 
     @Test
-    void sexTypeHoldsTheSexEnumNames() {
-        List<String> sexTypeLabels = jdbcTemplate.queryForList(
-                """
-                select e.enumlabel from pg_enum e join pg_type t on t.oid = e.enumtypid
-                where t.typname = 'sex_type' order by e.enumsortorder
-                """,
-                String.class);
-
-        assertThat(sexTypeLabels).containsExactly("FEMALE", "MALE", "OTHER");
-    }
-
-    @Test
     void appUsersHaveTheBaseEntityAndProfileColumns() {
         List<String> appUserColumns = jdbcTemplate.queryForList(
                 """
@@ -97,9 +85,109 @@ class MigrationTest extends IntegrationTest {
                 "version int8 NO",
                 "profile_id uuid NO",
                 "full_name text NO",
-                "sex sex_type NO",
+                "sex text NO",
                 "age int2 YES",
                 "address text NO");
+    }
+
+    @Test
+    void patientsMigrationApplied() {
+        Long appliedCount = jdbcTemplate.queryForObject(
+                "select count(*) from flyway_schema_history where success and version = '7'", Long.class);
+
+        assertThat(appliedCount).isEqualTo(1);
+    }
+
+    // 05_add_family_member.feature: the "Lives at my address" toggle was removed; every patient has its own address.
+    @Test
+    void patientsDropLivesAtUserAddressMigrationApplied() {
+        Long appliedCount = jdbcTemplate.queryForObject(
+                "select count(*) from flyway_schema_history where success and version = '8'", Long.class);
+
+        assertThat(appliedCount).isEqualTo(1);
+    }
+
+    // Columns are named after their type: the MobilityCategory field is mobilityCategory, its column mobility_category.
+    @Test
+    void patientsRenameMobilityMigrationApplied() {
+        Long appliedCount = jdbcTemplate.queryForObject(
+                "select count(*) from flyway_schema_history where success and version = '9'", Long.class);
+
+        assertThat(appliedCount).isEqualTo(1);
+    }
+
+    @Test
+    void patientsHaveTheBaseEntityAndPatientColumns() {
+        List<String> patientColumns = jdbcTemplate.queryForList(
+                """
+                select column_name || ' ' || udt_name || ' ' || is_nullable from information_schema.columns
+                where table_schema = 'public' and table_name = 'patients'
+                """,
+                String.class);
+
+        assertThat(patientColumns).containsExactlyInAnyOrder(
+                "id uuid NO",
+                "created_at timestamptz NO",
+                "updated_at timestamptz NO",
+                "version int8 NO",
+                "user_id uuid NO",
+                "relation text NO",
+                "full_name text NO",
+                "age int2 NO",
+                "sex text NO",
+                "mobile_country_code text YES",
+                "mobile_number text YES",
+                "address text NO",
+                "mobility_category text NO",
+                "health_notes text YES",
+                "deleted_at timestamptz YES");
+    }
+
+    // The family list reads live patients by owner, so the index skips soft-deleted rows.
+    @Test
+    void patientsUserIndexCoversOnlyLivePatients() {
+        List<String> indexDefinitions = jdbcTemplate.queryForList(
+                "select indexdef from pg_indexes where schemaname = 'public' and indexname = 'patients_user_idx'",
+                String.class);
+
+        assertThat(indexDefinitions).singleElement().satisfies(indexDefinition -> assertThat(indexDefinition)
+                .contains("ON public.patients")
+                .contains("(user_id)")
+                .contains("WHERE (deleted_at IS NULL)"));
+    }
+
+    @Test
+    void enumsAsTextMigrationApplied() {
+        Long appliedCount = jdbcTemplate.queryForObject(
+                "select count(*) from flyway_schema_history where success and version = '10'", Long.class);
+
+        assertThat(appliedCount).isEqualTo(1);
+    }
+
+    // User decision 2026-11-26: enums are stored as text by their Java names (@Enumerated(STRING)), never as
+    // Postgres enum types.
+    @Test
+    void publicSchemaHasNoEnumTypes() {
+        Long enumTypeCount = jdbcTemplate.queryForObject(
+                """
+                select count(*) from pg_type t join pg_namespace n on n.oid = t.typnamespace
+                where n.nspname = 'public' and t.typtype = 'e'
+                """,
+                Long.class);
+
+        assertThat(enumTypeCount).isZero();
+    }
+
+    @Test
+    void profileRolesAreATextArray() {
+        String rolesType = jdbcTemplate.queryForObject(
+                """
+                select udt_name from information_schema.columns
+                where table_schema = 'public' and table_name = 'profiles' and column_name = 'roles'
+                """,
+                String.class);
+
+        assertThat(rolesType).isEqualTo("_text");
     }
 
     @Test

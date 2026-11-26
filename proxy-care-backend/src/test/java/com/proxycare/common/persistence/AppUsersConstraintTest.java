@@ -8,7 +8,6 @@ import com.proxycare.support.IntegrationTest;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -84,13 +83,14 @@ class AppUsersConstraintTest extends IntegrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    // User decision 2026-11-26: enums are plain text holding the Java enum name; only the API checks the value.
     @Test
-    void sexOutsideTheEnumFails() {
+    void sexOutsideTheEnumIsStillStorable() {
         testDb.insertProfile(profileId, PHONE, "USER");
 
-        assertThatThrownBy(() -> testDb.insertAppUser(profileId, NAME, "male", 34, ADDRESS))
-                .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("invalid input value for enum sex_type");
+        testDb.insertAppUser(profileId, NAME, "male", 34, ADDRESS);
+
+        assertThat(testDb.appUserOf(profileId).sex()).isEqualTo("male");
     }
 
     // Decision OQ-22: name, age and address rules are validated only in the request DTO.

@@ -17,7 +17,6 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.ColumnTransformer;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
@@ -37,9 +36,7 @@ public class ProfileEntity {
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(nullable = false, columnDefinition = "app_role[]")
-    // Hibernate binds the array as varchar[]; Postgres does not cast that to app_role[] implicitly.
-    @ColumnTransformer(write = "?::app_role[]")
+    @Column(nullable = false)
     private Set<Role> roles;
 
     @Column(nullable = false)

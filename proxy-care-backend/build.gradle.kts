@@ -42,8 +42,12 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.2.0")
     runtimeOnly("org.postgresql:postgresql")
+    implementation("org.mapstruct:mapstruct:1.6.3")
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
+    // After Lombok, so MapStruct sees the generated getters and setters.
+    annotationProcessor("org.projectlombok:lombok-mapstruct-binding:0.2.0")
+    annotationProcessor("org.mapstruct:mapstruct-processor:1.6.3")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
@@ -60,6 +64,10 @@ tasks.jar {
 
 tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
+    // Mappers are Spring beans, and a response field no mapping fills fails the build.
+    options.compilerArgs.addAll(listOf(
+        "-Amapstruct.defaultComponentModel=spring",
+        "-Amapstruct.unmappedTargetPolicy=ERROR"))
 }
 
 tasks.test {

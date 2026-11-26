@@ -1,18 +1,18 @@
 package com.proxycare.features.user.mapper;
 
+import com.proxycare.features.user.dto.request.SavePatientRequest;
 import com.proxycare.features.user.dto.response.AppUserResponse;
+import com.proxycare.features.user.dto.response.PatientResponse;
 import com.proxycare.features.user.entity.AppUserEntity;
-import org.springframework.stereotype.Component;
+import com.proxycare.features.user.entity.PatientEntity;
+import org.mapstruct.Mapper;
 
-@Component
-public class AppUserMapper {
+@Mapper
+public interface AppUserMapper {
 
-    public AppUserResponse toAppUserResponse(AppUserEntity appUserEntity, String phone) {
-        return new AppUserResponse(
-                appUserEntity.getFullName(),
-                appUserEntity.getSex(),
-                appUserEntity.getAge(),
-                appUserEntity.getAddress(),
-                phone);
-    }
+    AppUserResponse toAppUserResponse(AppUserEntity appUserEntity);
+
+    PatientResponse toPatientResponse(PatientEntity patientEntity);
+
+    PatientEntity toPatientEntity(SavePatientRequest savePatientRequest);
 }

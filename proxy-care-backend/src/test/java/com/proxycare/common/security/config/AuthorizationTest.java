@@ -49,7 +49,7 @@ class AuthorizationTest extends IntegrationTest {
     void roleChangeAppliesOnTheNextRequest() throws Exception {
         testDb.insertProfile(userId, "+919876543210", "USER");
         String auth = bearer(userId);
-        jdbcTemplate.update("update profiles set roles = '{USER,CARETAKER}'::app_role[] where id = ?", userId);
+        jdbcTemplate.update("update profiles set roles = '{USER,CARETAKER}'::text[] where id = ?", userId);
 
         mockMvc.perform(get("/api/v1/_probe/caretaker-only").header("Authorization", auth))
                 .andExpect(status().isOk());
