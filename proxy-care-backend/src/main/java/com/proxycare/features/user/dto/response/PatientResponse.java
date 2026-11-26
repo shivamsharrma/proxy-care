@@ -1,9 +1,9 @@
-package com.proxycare.features.patient.dto.response;
+package com.proxycare.features.user.dto.response;
 
 import com.proxycare.common.model.MobileNumber;
 import com.proxycare.common.model.Sex;
-import com.proxycare.features.patient.enums.MobilityCategory;
-import com.proxycare.features.patient.enums.Relation;
+import com.proxycare.features.user.enums.MobilityCategory;
+import com.proxycare.features.user.enums.Relation;
 import java.util.UUID;
 
 public record PatientResponse(
@@ -13,8 +13,7 @@ public record PatientResponse(
         Integer age,
         Sex sex,
         MobileNumber mobile,
-        boolean livesAtUserAddress,
         String address,
-        MobilityCategory mobility,
+        MobilityCategory mobilityCategory,
         String healthNotes
 ) {}

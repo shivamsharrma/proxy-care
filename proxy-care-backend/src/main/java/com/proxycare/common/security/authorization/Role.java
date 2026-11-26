@@ -1,7 +1,7 @@
 package com.proxycare.common.security.authorization;
 
 /**
- * Application roles. Names match the {@code app_role} Postgres enum, so never rename one.
+ * Application roles. Stored by name in {@code profiles.roles} (text[]), so never rename one.
  */
 public enum Role {
 

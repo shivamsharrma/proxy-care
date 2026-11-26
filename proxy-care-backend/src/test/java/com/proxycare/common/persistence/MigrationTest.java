@@ -70,18 +70,6 @@ class MigrationTest extends IntegrationTest {
     }
 
     @Test
-    void sexTypeHoldsTheSexEnumNames() {
-        List<String> sexTypeLabels = jdbcTemplate.queryForList(
-                """
-                select e.enumlabel from pg_enum e join pg_type t on t.oid = e.enumtypid
-                where t.typname = 'sex_type' order by e.enumsortorder
-                """,
-                String.class);
-
-        assertThat(sexTypeLabels).containsExactly("FEMALE", "MALE", "OTHER");
-    }
-
-    @Test
     void appUsersHaveTheBaseEntityAndProfileColumns() {
         List<String> appUserColumns = jdbcTemplate.queryForList(
                 """
@@ -97,7 +85,7 @@ class MigrationTest extends IntegrationTest {
                 "version int8 NO",
                 "profile_id uuid NO",
                 "full_name text NO",
-                "sex sex_type NO",
+                "sex text NO",
                 "age int2 YES",
                 "address text NO");
     }
@@ -110,30 +98,22 @@ class MigrationTest extends IntegrationTest {
         assertThat(appliedCount).isEqualTo(1);
     }
 
-    // 05_add_family_member.feature: Each relation is saved with the right enum.
+    // 05_add_family_member.feature: the "Lives at my address" toggle was removed; every patient has its own address.
     @Test
-    void relationTypeHoldsTheRelationEnumNames() {
-        List<String> relationTypeLabels = jdbcTemplate.queryForList(
-                """
-                select e.enumlabel from pg_enum e join pg_type t on t.oid = e.enumtypid
-                where t.typname = 'relation_type' order by e.enumsortorder
-                """,
-                String.class);
+    void patientsDropLivesAtUserAddressMigrationApplied() {
+        Long appliedCount = jdbcTemplate.queryForObject(
+                "select count(*) from flyway_schema_history where success and version = '8'", Long.class);
 
-        assertThat(relationTypeLabels).containsExactly("FATHER", "MOTHER", "SPOUSE", "GRANDPARENT", "SIBLING", "OTHER");
+        assertThat(appliedCount).isEqualTo(1);
     }
 
-    // 05_add_family_member.feature: Each mobility category is saved with the right enum.
+    // Columns are named after their type: the MobilityCategory field is mobilityCategory, its column mobility_category.
     @Test
-    void mobilityCategoryHoldsTheMobilityEnumNames() {
-        List<String> mobilityCategoryLabels = jdbcTemplate.queryForList(
-                """
-                select e.enumlabel from pg_enum e join pg_type t on t.oid = e.enumtypid
-                where t.typname = 'mobility_category' order by e.enumsortorder
-                """,
-                String.class);
+    void patientsRenameMobilityMigrationApplied() {
+        Long appliedCount = jdbcTemplate.queryForObject(
+                "select count(*) from flyway_schema_history where success and version = '9'", Long.class);
 
-        assertThat(mobilityCategoryLabels).containsExactly("AMBULATORY", "WHEELCHAIR", "BEDRIDDEN");
+        assertThat(appliedCount).isEqualTo(1);
     }
 
     @Test
@@ -151,15 +131,14 @@ class MigrationTest extends IntegrationTest {
                 "updated_at timestamptz NO",
                 "version int8 NO",
                 "user_id uuid NO",
-                "relation relation_type NO",
+                "relation text NO",
                 "full_name text NO",
                 "age int2 NO",
-                "sex sex_type NO",
+                "sex text NO",
                 "mobile_country_code text YES",
                 "mobile_number text YES",
-                "lives_at_user_address bool NO",
                 "address text NO",
-                "mobility mobility_category NO",
+                "mobility_category text NO",
                 "health_notes text YES",
                 "deleted_at timestamptz YES");
     }
@@ -175,6 +154,40 @@ class MigrationTest extends IntegrationTest {
                 .contains("ON public.patients")
                 .contains("(user_id)")
                 .contains("WHERE (deleted_at IS NULL)"));
+    }
+
+    @Test
+    void enumsAsTextMigrationApplied() {
+        Long appliedCount = jdbcTemplate.queryForObject(
+                "select count(*) from flyway_schema_history where success and version = '10'", Long.class);
+
+        assertThat(appliedCount).isEqualTo(1);
+    }
+
+    // User decision 2026-11-26: enums are stored as text by their Java names (@Enumerated(STRING)), never as
+    // Postgres enum types.
+    @Test
+    void publicSchemaHasNoEnumTypes() {
+        Long enumTypeCount = jdbcTemplate.queryForObject(
+                """
+                select count(*) from pg_type t join pg_namespace n on n.oid = t.typnamespace
+                where n.nspname = 'public' and t.typtype = 'e'
+                """,
+                Long.class);
+
+        assertThat(enumTypeCount).isZero();
+    }
+
+    @Test
+    void profileRolesAreATextArray() {
+        String rolesType = jdbcTemplate.queryForObject(
+                """
+                select udt_name from information_schema.columns
+                where table_schema = 'public' and table_name = 'profiles' and column_name = 'roles'
+                """,
+                String.class);
+
+        assertThat(rolesType).isEqualTo("_text");
     }
 
     @Test

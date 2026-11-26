@@ -1,4 +1,4 @@
-package com.proxycare.features.patient.enums;
+package com.proxycare.features.user.enums;
 
 /** How the patient is related to the user who added them. */
 public enum Relation {

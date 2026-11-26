@@ -1,10 +1,11 @@
 package com.proxycare.support;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
- * A patients row as stored, read by {@link TestDb#patientsOf(UUID)}; relation, sex and mobility are the enum
- * names. {@code userId} is the owning app_users id.
+ * A patients row as stored, read by {@link TestDb#patientsOf(UUID)}; relation, sex and mobilityCategory are the enum
+ * names. {@code userId} is the owning app_users id; {@code deletedAt} is null for a live patient.
  */
 public record PatientRow(
         UUID id,
@@ -15,7 +16,7 @@ public record PatientRow(
         String sex,
         String mobileCountryCode,
         String mobileNumber,
-        Boolean livesAtUserAddress,
         String address,
-        String mobility,
-        String healthNotes) {}
+        String mobilityCategory,
+        String healthNotes,
+        Instant deletedAt) {}

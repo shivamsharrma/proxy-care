@@ -1,20 +1,25 @@
-package com.proxycare.features.patient.dto.request;
+package com.proxycare.features.user.dto.request;
 
 import com.proxycare.common.model.MobileNumber;
 import com.proxycare.common.model.Sex;
 import com.proxycare.common.validation.PersonName;
-import com.proxycare.features.patient.enums.MobilityCategory;
-import com.proxycare.features.patient.enums.Relation;
+import com.proxycare.features.user.enums.MobilityCategory;
+import com.proxycare.features.user.enums.Relation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.util.UUID;
 
-/** The add family member form (Screen 05). The owner comes from the token, never from here. */
-@OwnAddressRequired
+/**
+ * One family member in the user profile's patients list (Screen 05). {@code id} is null for a new patient and the
+ * patient's id for an edit. The owner comes from the token, never from here.
+ */
 public record SavePatientRequest(
+        UUID id,
         @NotNull Relation relation,
         @NotNull
         @Size(min = 2, max = 80)
@@ -23,13 +28,10 @@ public record SavePatientRequest(
         @NotNull @Min(0) @Max(120) Integer age,
         @NotNull Sex sex,
         @Valid MobileNumber mobile,
-        @NotNull Boolean livesAtUserAddress,
-        String address,
-        @NotNull MobilityCategory mobility,
+        @NotBlank @Size(max = 300) String address,
+        @NotNull MobilityCategory mobilityCategory,
         @Size(max = 500) String healthNotes
 ) {
-
-    public static final int MAX_ADDRESS_LENGTH = 300;
 
     // Trimmed here so the constraints check the text exactly as it will be stored. Blank health notes are none.
     public SavePatientRequest {

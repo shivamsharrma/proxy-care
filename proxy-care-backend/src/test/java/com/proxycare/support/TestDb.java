@@ -1,6 +1,8 @@
 package com.proxycare.support;
 
 import com.proxycare.features.profile.enums.PreferredLanguage;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -10,6 +12,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 /** Data setup for integration tests. Tests use real tables; never mock the database. */
 public class TestDb {
+
+    private static final String PATIENT_ROW_SELECT = """
+            select id, user_id, relation, full_name, age, sex, mobile_country_code, mobile_number,
+                   address, mobility_category, health_notes, deleted_at
+            from patients""";
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -38,7 +45,7 @@ public class TestDb {
     public void insertProfile(UUID id, String phone, String... roles) {
         insertAuthUser(id);
         jdbcTemplate.update(
-                "insert into profiles (id, phone, roles) values (?, ?, ?::app_role[])",
+                "insert into profiles (id, phone, roles) values (?, ?, ?::text[])",
                 id,
                 phone,
                 "{" + String.join(",", roles) + "}");
@@ -51,7 +58,7 @@ public class TestDb {
 
     /** The stored roles of a profile, in array order. */
     public List<String> rolesOf(UUID profileId) {
-        return jdbcTemplate.queryForList("select unnest(roles)::text from profiles where id = ?", String.class, profileId);
+        return jdbcTemplate.queryForList("select unnest(roles) from profiles where id = ?", String.class, profileId);
     }
 
     public String phoneOf(UUID profileId) {
@@ -68,7 +75,7 @@ public class TestDb {
         return jdbcTemplate.queryForObject(
                 """
                 insert into app_users (profile_id, full_name, sex, age, address, created_at, updated_at)
-                values (?, ?, ?::sex_type, ?::smallint, ?, now(), now())
+                values (?, ?, ?, ?::smallint, ?, now(), now())
                 returning id
                 """,
                 UUID.class,
@@ -82,7 +89,7 @@ public class TestDb {
     /** The stored app_users row of a profile, or null when it has none. */
     public AppUserRow appUserOf(UUID profileId) {
         List<AppUserRow> appUserRows = jdbcTemplate.query(
-                "select id, profile_id, full_name, sex::text, age, address from app_users where profile_id = ?",
+                "select id, profile_id, full_name, sex, age, address from app_users where profile_id = ?",
                 (resultSet, rowNumber) -> new AppUserRow(
                         resultSet.getObject("id", UUID.class),
                         resultSet.getObject("profile_id", UUID.class),
@@ -96,7 +103,8 @@ public class TestDb {
 
     /**
      * Inserts a live patients row for an existing app_users row, without mobile or health notes. relation, sex and
-     * mobility are the enum names (FATHER, MALE, WHEELCHAIR). A null argument is stored as null. Returns its id.
+     * mobilityCategory are the enum names (FATHER, MALE, WHEELCHAIR). A null argument is stored as null.
+     * Returns its id.
      */
     public UUID insertPatient(
             UUID appUserId,
@@ -104,16 +112,15 @@ public class TestDb {
             String fullName,
             Integer age,
             String sex,
-            Boolean livesAtUserAddress,
             String address,
-            String mobility,
+            String mobilityCategory,
             Instant createdAt) {
         OffsetDateTime createdAtUtc = OffsetDateTime.ofInstant(createdAt, ZoneOffset.UTC);
         return jdbcTemplate.queryForObject(
                 """
-                insert into patients (user_id, relation, full_name, age, sex, lives_at_user_address, address,
-                                      mobility, created_at, updated_at)
-                values (?, ?::relation_type, ?, ?::smallint, ?::sex_type, ?::boolean, ?, ?::mobility_category, ?, ?)
+                insert into patients (user_id, relation, full_name, age, sex, address, mobility_category, created_at,
+                                      updated_at)
+                values (?, ?, ?, ?::smallint, ?, ?, ?, ?, ?)
                 returning id
                 """,
                 UUID.class,
@@ -122,22 +129,15 @@ public class TestDb {
                 fullName,
                 age,
                 sex,
-                livesAtUserAddress,
                 address,
-                mobility,
+                mobilityCategory,
                 createdAtUtc,
                 createdAtUtc);
     }
 
-    /**
-     * Inserts a valid live patient (FATHER, 68, MALE, WHEELCHAIR) added at {@code createdAt}. The address is
-     * stored as given: with {@code livesAtUserAddress} true, pass the owner's app_users address so the row is
-     * one the API could have written.
-     */
-    public UUID insertPatient(
-            UUID appUserId, String fullName, boolean livesAtUserAddress, String address, Instant createdAt) {
-        return insertPatient(
-                appUserId, "FATHER", fullName, 68, "MALE", livesAtUserAddress, address, "WHEELCHAIR", createdAt);
+    /** Inserts a valid live patient (FATHER, 68, MALE, WHEELCHAIR) added at {@code createdAt}. */
+    public UUID insertPatient(UUID appUserId, String fullName, String address, Instant createdAt) {
+        return insertPatient(appUserId, "FATHER", fullName, 68, "MALE", address, "WHEELCHAIR", createdAt);
     }
 
     public void softDeletePatient(UUID patientId, Instant deletedAt) {
@@ -150,29 +150,34 @@ public class TestDb {
     /** The stored patients rows of an app_users row (soft-deleted included), oldest first. */
     public List<PatientRow> patientsOf(UUID appUserId) {
         return jdbcTemplate.query(
-                """
-                select id, user_id, relation::text, full_name, age, sex::text, mobile_country_code, mobile_number,
-                       lives_at_user_address, address, mobility::text, health_notes
-                from patients where user_id = ? order by created_at, id
-                """,
-                (resultSet, rowNumber) -> new PatientRow(
-                        resultSet.getObject("id", UUID.class),
-                        resultSet.getObject("user_id", UUID.class),
-                        resultSet.getString("relation"),
-                        resultSet.getString("full_name"),
-                        resultSet.getObject("age", Integer.class),
-                        resultSet.getString("sex"),
-                        resultSet.getString("mobile_country_code"),
-                        resultSet.getString("mobile_number"),
-                        resultSet.getObject("lives_at_user_address", Boolean.class),
-                        resultSet.getString("address"),
-                        resultSet.getString("mobility"),
-                        resultSet.getString("health_notes")),
-                appUserId);
+                PATIENT_ROW_SELECT + " where user_id = ? order by created_at, id", TestDb::toPatientRow, appUserId);
     }
 
-    public void setAppUserAddressForProfile(UUID profileId, String address) {
-        jdbcTemplate.update("update app_users set address = ? where profile_id = ?", address, profileId);
+    /** The stored patients row with this id (soft-deleted included), or null when there is none. */
+    public PatientRow patient(UUID patientId) {
+        List<PatientRow> patientRows =
+                jdbcTemplate.query(PATIENT_ROW_SELECT + " where id = ?", TestDb::toPatientRow, patientId);
+        return patientRows.isEmpty() ? null : patientRows.get(0);
+    }
+
+    private static PatientRow toPatientRow(ResultSet resultSet, int rowNumber) throws SQLException {
+        return new PatientRow(
+                resultSet.getObject("id", UUID.class),
+                resultSet.getObject("user_id", UUID.class),
+                resultSet.getString("relation"),
+                resultSet.getString("full_name"),
+                resultSet.getObject("age", Integer.class),
+                resultSet.getString("sex"),
+                resultSet.getString("mobile_country_code"),
+                resultSet.getString("mobile_number"),
+                resultSet.getString("address"),
+                resultSet.getString("mobility_category"),
+                resultSet.getString("health_notes"),
+                toInstant(resultSet.getObject("deleted_at", OffsetDateTime.class)));
+    }
+
+    private static Instant toInstant(OffsetDateTime offsetDateTime) {
+        return offsetDateTime == null ? null : offsetDateTime.toInstant();
     }
 
     /** Row count of a table; {@code table} is a literal from test code, e.g. "auth.users". */

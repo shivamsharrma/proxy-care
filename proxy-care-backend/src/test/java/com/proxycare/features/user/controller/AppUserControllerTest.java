@@ -2,6 +2,7 @@ package com.proxycare.features.user.controller;
 
 import static com.proxycare.support.ApiErrorAssert.assertApiError;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -12,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.proxycare.support.AppUserRow;
 import com.proxycare.support.IntegrationTest;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -25,7 +27,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-/** 04_user_profile.feature (Screen 04, User profile Stage A): GET / POST / PUT /api/v1/users/me. */
+/**
+ * 04_user_profile.feature (Screen 04, User profile Stage A): GET / POST / PUT /api/v1/users/me. The patients list
+ * in the same body is covered by {@link AppUserControllerPatientsTest}.
+ */
 class AppUserControllerTest extends IntegrationTest {
 
     private static final String PHONE = "+919876543210";
@@ -82,7 +87,7 @@ class AppUserControllerTest extends IntegrationTest {
                 .andExpect(jsonPath("$.sex").value("MALE"))
                 .andExpect(jsonPath("$.age").value(34))
                 .andExpect(jsonPath("$.address").value(RAHUL_ADDRESS))
-                .andExpect(jsonPath("$.phone").value(PHONE));
+                .andExpect(jsonPath("$.phone").doesNotExist());
 
         AppUserRow appUserRow = testDb.appUserOf(userId);
         assertThat(appUserRow).isNotNull();
@@ -103,8 +108,7 @@ class AppUserControllerTest extends IntegrationTest {
                 .andExpect(jsonPath("$.fullName").value(PRIYA))
                 .andExpect(jsonPath("$.sex").value("FEMALE"))
                 .andExpect(jsonPath("$.age").value(nullValue()))
-                .andExpect(jsonPath("$.address").value(PRIYA_ADDRESS))
-                .andExpect(jsonPath("$.phone").value(PHONE));
+                .andExpect(jsonPath("$.address").value(PRIYA_ADDRESS));
 
         AppUserRow appUserRow = testDb.appUserOf(userId);
         assertThat(appUserRow).isNotNull();
@@ -293,7 +297,8 @@ class AppUserControllerTest extends IntegrationTest {
         assertThat(testDb.appUserOf(userId).address()).isEqualTo(address);
     }
 
-    // Screen 04: the mobile is prefilled, verified and read-only, so it comes from the profile, never the body.
+    // Screen 04: the mobile is prefilled, verified and read-only; it lives on the profile (GET /api/v1/profile/me),
+    // is never taken from this body, and is not part of the user profile response.
     @Test
     void phoneIsNeverTakenFromTheBody() throws Exception {
         testDb.insertProfile(userId, PHONE, "USER");
@@ -305,7 +310,7 @@ class AppUserControllerTest extends IntegrationTest {
 
         postAppUser(objectMapper.writeValueAsString(appUserFields))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.phone").value(PHONE));
+                .andExpect(jsonPath("$.phone").doesNotExist());
 
         assertThat(testDb.appUserOf(userId)).isNotNull();
         assertThat(testDb.appUserOf(someoneElsesId)).isNull();
@@ -368,8 +373,7 @@ class AppUserControllerTest extends IntegrationTest {
                 .andExpect(jsonPath("$.fullName").value(PRIYA))
                 .andExpect(jsonPath("$.sex").value("FEMALE"))
                 .andExpect(jsonPath("$.age").value(40))
-                .andExpect(jsonPath("$.address").value(PRIYA_ADDRESS))
-                .andExpect(jsonPath("$.phone").value(PHONE));
+                .andExpect(jsonPath("$.address").value(PRIYA_ADDRESS));
 
         AppUserRow appUserRow = testDb.appUserOf(userId);
         assertThat(testDb.count("app_users")).isEqualTo(1);
@@ -481,7 +485,8 @@ class AppUserControllerTest extends IntegrationTest {
                 .andExpect(jsonPath("$.sex").value("MALE"))
                 .andExpect(jsonPath("$.age").value(34))
                 .andExpect(jsonPath("$.address").value(RAHUL_ADDRESS))
-                .andExpect(jsonPath("$.phone").value(PHONE));
+                .andExpect(jsonPath("$.phone").doesNotExist())
+                .andExpect(jsonPath("$.patients", hasSize(0)));
     }
 
     @Test
@@ -577,7 +582,7 @@ class AppUserControllerTest extends IntegrationTest {
         return "Bearer " + testTokens.forUser(userId, PHONE);
     }
 
-    /** A SaveAppUserRequest body; a null argument leaves that field out. */
+    /** A SaveAppUserRequest body with no patients; a null argument leaves that field out. */
     private String appUserBody(String fullName, String sex, Integer age, String address) {
         return objectMapper.writeValueAsString(appUserFields(fullName, sex, age, address));
     }
@@ -588,6 +593,7 @@ class AppUserControllerTest extends IntegrationTest {
         putIfPresent(appUserFields, "sex", sex);
         putIfPresent(appUserFields, "age", age);
         putIfPresent(appUserFields, "address", address);
+        appUserFields.put("patients", List.of());
         return appUserFields;
     }
 
