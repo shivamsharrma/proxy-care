@@ -6,34 +6,22 @@ Feature: Add family member - Stage B (Screen 05)
 
   # Source: proxy-care-api-context.md §4 "05 Add family member (Stage B)"
   # Inputs: relation* (Father, Mother, Spouse, Grandparent, Sibling, Other), full name*, age*,
-  #         sex*, mobile (optional; receives pickup OTP), "lives at my address" toggle (else address*),
+  #         sex*, mobile (optional; receives pickup OTP), address*,
   #         mobility category* (AMBULATORY / WHEELCHAIR / BEDRIDDEN), health notes (optional).
   # Action: Save family member -> 06.
   # ASSUMPTION: patient age whole number 0-120; health notes max 500 chars; copy is placeholder.
 
   Background:
     Given I am a verified User with a saved profile
-    And my profile address is "Flat 12, Sunrise Apartments, Kothrud, Pune 411038"
     And I am on the "Add family member" screen
 
   @ui-state
   Scenario: Add family member form shows all fields
     Then I should see the relation options "Father", "Mother", "Spouse", "Grandparent", "Sibling" and "Other"
-    And I should see the required fields "Full name", "Age" and "Sex"
+    And I should see the required fields "Full name", "Age", "Sex" and "Address"
     And I should see the optional field "Mobile"
-    And I should see the toggle "Lives at my address"
     And I should see the mobility options "Walks on own", "Wheelchair" and "Bedridden"
     And I should see the optional field "Health notes"
-
-  @ui-state
-  Scenario: "Lives at my address" is on by default and hides the address field
-    Then the "Lives at my address" toggle should be on
-    And the "Address" field should not be shown
-
-  @ui-state
-  Scenario: Turning off "Lives at my address" shows a required address field
-    When I turn off the "Lives at my address" toggle
-    Then the "Address" field should be shown and marked as required
 
   @smoke @happy-path
   Scenario: Adding a parent who lives with the user
@@ -41,6 +29,7 @@ Feature: Add family member - Stage B (Screen 05)
     And I enter "Suresh Sharma" in "Full name"
     And I enter "68" in "Age"
     And I select the sex "Male"
+    And I enter "Flat 12, Sunrise Apartments, Kothrud, Pune 411038" in "Address"
     And I select the mobility option "Wheelchair"
     And I enter "Diabetic, needs help on stairs" in "Health notes"
     And I tap "Save family member"
@@ -56,7 +45,6 @@ Feature: Add family member - Stage B (Screen 05)
     And I enter "72" in "Age"
     And I select the sex "Female"
     And I enter "9123456780" in "Mobile"
-    And I turn off the "Lives at my address" toggle
     And I enter "5 Lake View Road, Chennai 600028" in "Address"
     And I select the mobility option "Walks on own"
     And I tap "Save family member"
@@ -123,15 +111,8 @@ Feature: Add family member - Stage B (Screen 05)
       | Full name | Enter their full name               |
       | Age       | Enter their age                     |
       | Sex       | Choose their sex                    |
+      | Address   | Enter their address                 |
       | Mobility  | Choose how they move around         |
-
-  @negative @validation
-  Scenario: Address is required when "Lives at my address" is off
-    Given I have filled the family member form with valid data
-    When I turn off the "Lives at my address" toggle
-    And I leave the "Address" field empty
-    Then the "Save family member" button should be disabled
-    And I should see the inline error "Enter their address" after the field loses focus
 
   @negative @validation
   Scenario Outline: Invalid age for the family member
@@ -174,14 +155,6 @@ Feature: Add family member - Stage B (Screen 05)
     When I type 501 characters into "Health notes"
     Then the "Health notes" field should contain 500 characters
     And I should see the counter "500/500"
-
-  @edge-case
-  Scenario: Turning the address toggle back on discards the separate address
-    Given I have turned off the "Lives at my address" toggle
-    And I have entered "5 Lake View Road, Chennai 600028" in "Address"
-    When I turn on the "Lives at my address" toggle
-    And I complete the form and tap "Save family member"
-    Then the patient address should be "Flat 12, Sunrise Apartments, Kothrud, Pune 411038"
 
   @negative
   Scenario: Save fails because of a network error

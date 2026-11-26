@@ -115,7 +115,6 @@ create table app_users (
 );
 
 -- Patient (family member) a User books for. Screen 05.
--- "Lives at my address" copies the User's address at save time.
 create table patients (
   user_id      uuid not null references app_users (id),
   relation     relation_type not null,
@@ -124,7 +123,6 @@ create table patients (
   sex          sex_type not null,
   mobile_country_code text,                                             -- MobileNumber, optional;
   mobile_number       text,                                             -- receives the pickup code
-  lives_at_user_address boolean not null,                               -- true: address copied from app_users
   address      text not null,
   mobility     mobility_category not null,
   health_notes text,

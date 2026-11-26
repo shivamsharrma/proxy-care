@@ -45,7 +45,13 @@ JUnit 5 + AssertJ, a real PostGIS container via Testcontainers, WireMock for
 vendor gateways once they exist. For a helper not named here:
 `proxy-care-backend/README.md` → How to write tests.
 
-- **Unit test:** plain JUnit, no Spring, for pure logic (mappers, value rules).
+- **Features are tested through the controller only.** Each feature endpoint
+  gets an integration test that calls it over HTTP. No service, repository or
+  mapper tests inside `features/`; the controller tests cover them. Do not
+  mock the service to test the controller, either: the controller test runs
+  the real stack.
+- **Unit test:** plain JUnit, no Spring, for pure logic outside `features/`
+  (`common/`, `infrastructure/`, value rules).
 - **Integration test:** `extends support/IntegrationTest` for anything needing
   Spring, the database or HTTP. It gives `mockMvc`, `objectMapper`, `testDb`,
   `mutableClock`, `testTokens`; every test starts with empty tables and the

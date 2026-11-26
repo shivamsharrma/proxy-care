@@ -20,8 +20,9 @@ also load `supabase:supabase-postgres-best-practices` if available.
      adding `version` to an existing table: `bigint not null default 0`;
    - `created_at` / `updated_at` are written by JPA auditing; don't rely on a
      column default for them;
-   - money as `bigint` paise; statuses as `text` + `check (... in (...))` or
-     a Postgres enum whose values equal the Java enum names;
+   - money as `bigint` paise; enums and statuses as plain `text` (`text[]`
+     for a set) holding the Java enum names; never `create type ... as enum`
+     (user decision 2026-11-26, migration `V10__enums_as_text.sql`);
    - Java enums mapped with `@Enumerated(STRING)` are stored as their names
      (`EN`, not `en`); changing an existing column's values to names needs an
      `update ... set col = upper(col)` and a new default, like

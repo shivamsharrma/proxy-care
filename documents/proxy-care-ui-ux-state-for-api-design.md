@@ -139,7 +139,7 @@ API needs: create gateway order for a booking or payment request · handle gatew
 - Actions: Continue → 05.
 
 **05 Add family member (Stage B)**
-- Inputs: relation* (Father, Mother, Spouse, Grandparent, Sibling, Other), full name*, age*, sex*, mobile (optional), "lives at my address" toggle (else address), mobility category* (3 options), health notes (optional).
+- Inputs: relation* (Father, Mother, Spouse, Grandparent, Sibling, Other), full name*, age*, sex*, mobile (optional), address*, mobility category* (3 options), health notes (optional).
 - Actions: Save family member → 06.
 
 **06 Family linked**

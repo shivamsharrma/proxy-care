@@ -21,9 +21,9 @@ specifics:
 - Stateless resource server: each request's Supabase access token is verified
   against the project JWKS (ES256 or RS256) in `common/security/jwt`
   (issuer, audience, expiry). The backend never sees OTPs or passwords.
-- Roles come from our `profiles` table (`app_role[]`) via `IUserRoleProvider`
+- Roles come from our `profiles` table (`roles text[]`) via `IUserRoleProvider`
   on every request, not from token claims, so role changes apply on the next
-  call. `Role` names match the `app_role` enum: never rename one.
+  call. `Role` names are stored as text: never rename one.
 - A signed-in user without a `profiles` row has no roles
   (`PROFILE_NOT_FOUND` → the app shows onboarding).
 

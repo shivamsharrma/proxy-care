@@ -38,12 +38,18 @@ or event (`security.md` → PII).
   feature's `*_ALREADY_EXISTS` code. Update is `PUT`, a full replace (200);
   updating one that doesn't exist yet is 404 with the feature's not-found
   code (`AppUserController`). Each service method reads as one flow: find
-  or check, build or load, apply the request through setters, save, map
-  (`AppUserService`).
+  or check, build or load, apply the request in the service (setters, with
+  the mapper only to build a new object), save, map (`AppUserService`).
 - Exception: `PUT /api/v1/profile/me` stays one create-or-update endpoint,
   because sign-in creates the profile or adds the app's role from the token
   (`ProfileService.updateCurrentProfile`).
-- Mappers are `@Component`s with `to<Dto>(…)` methods (`ProfileMapper`).
+- Mappers are MapStruct `@Mapper` interfaces (`AppUserMapper`): `to<Dto>(…)`
+  for responses, `to<Entity>(request)` for a new entity built from a request
+  (fields the server owns are `@Mapping(ignore = true)`). The Spring component
+  model and `unmappedTargetPolicy=ERROR` are set once in `build.gradle.kts`.
+- Mappers never modify an object in place: no `@MappingTarget`, no
+  `update<Entity>(request, entity)` methods. A mapper only returns new objects;
+  the service changes existing entities through their setters.
 - Features talk to each other through a service interface or events
   (`backend-events.md`), never through another feature's repository or tables.
 - `@Transactional` lives on service methods; `readOnly = true` for reads.
@@ -60,9 +66,14 @@ or event (`security.md` → PII).
   Fields the framework owns (`createdAt`, `version`) get
   `@Setter(AccessLevel.NONE)`.
 - Timestamps come from auditing (`@CreatedDate` / `@LastModifiedDate`, the
-  `Clock`), never from a database default.
-- Enums are `@Enumerated(STRING)` and stored and sent in JSON by their names
-  (`EN`, `HI`): no converters, codes or `@JsonValue`.
+  `Clock`), never from a database default. Exception: soft delete.
+- Soft delete: `@SoftDelete(strategy = TIMESTAMP, columnName = "deleted_at")`
+  on the entity (`PatientEntity`). Hibernate stamps `deleted_at` with the
+  database time on delete or orphan removal and leaves deleted rows out of
+  every query; the entity has no `deletedAt` field.
+- Enums are `@Enumerated(STRING)` in a `text` column (`text[]` for a set),
+  stored and sent in JSON by their names (`EN`, `HI`): no Postgres enum types,
+  `columnDefinition` casts, converters, codes or `@JsonValue`.
 - Concurrency: `@Version` optimistic locking only (a conflict becomes 409
   `CONCURRENT_MODIFICATION` via `GlobalExceptionHandler`). No pessimistic
   `@Lock` lookups, retry loops, `TransactionTemplate` or `Persistable`/`isNew`
