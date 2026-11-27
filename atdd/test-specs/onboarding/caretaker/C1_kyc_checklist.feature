@@ -9,7 +9,9 @@ Feature: Caretaker KYC checklist (Screen C1)
   #           straight to C4 Photo & identity check. The Aadhaar & PAN step must not appear
   #           on the checklist and no scenario in this suite covers C3.
   # MVP checklist steps (4): Mobile number -> Basic information -> Photo & video KYC -> Payout account.
-  # KYC status: IN_PROGRESS (step n of 4) -> SUBMITTED (video KYC scheduled) -> APPROVED / REJECTED.
+  # Onboarding status: IN_PROGRESS (step n of 4) -> SUBMITTED (bank details sent) -> COMPLETED.
+  # DECISION (2026-11-28): the caretaker account is ACTIVE only when the video KYC is approved and the
+  #           bank account is confirmed by the ₹1 test deposit; until then it is PENDING.
 
   Background:
     Given I am signing up in the Caretaker app
@@ -81,13 +83,13 @@ Feature: Caretaker KYC checklist (Screen C1)
 
   @navigation
   Scenario: Submitted caretaker is not shown the checklist
-    Given my KYC status is "SUBMITTED"
+    Given my onboarding status is "SUBMITTED"
     When I open the app
     Then I should see the "Under review" screen
 
   @navigation
-  Scenario: Approved caretaker goes straight to Home
-    Given my KYC status is "APPROVED"
+  Scenario: Active caretaker goes straight to Home
+    Given my caretaker account is "ACTIVE"
     When I open the app
     Then I should see the "Home (P1)" screen
 

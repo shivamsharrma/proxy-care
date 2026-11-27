@@ -7,7 +7,10 @@ Feature: Caretaker payout account (Screen C5)
   # Source: proxy-care-api-context.md §5 "C5 Payout account"; PRD §2.1 Account & Payout Setup
   # Inputs: account holder name*, account number*, re-enter account number*, IFSC*
   #         (auto-fills bank, branch, PIN). Action: Submit for review -> C6.
-  # A Rs 1 test deposit confirms the account. States: IFSC invalid, numbers mismatch, test deposit failed.
+  # A Rs 1 test deposit confirms the account. States: IFSC invalid, numbers mismatch.
+  # DECISION (2026-11-28): Submit for review sets the onboarding status to SUBMITTED at once and the
+  #           ₹1 test deposit runs in the background. Its result (confirming, confirmed, failed,
+  #           name mismatch) is shown on Under review (C6), where a failed check can be corrected.
   # ASSUMPTION: account number 9-18 digits; IFSC = 4 letters + "0" + 6 letters/digits; copy is placeholder.
 
   Background:
@@ -41,10 +44,10 @@ Feature: Caretaker payout account (Screen C5)
     And "Branch" should be filled with the branch for "HDFC0001234"
     And "PIN" should be filled with the branch PIN code
     When I tap "Submit for review"
-    Then I should see "Sending ₹1 to confirm your account"
-    And a ₹1 test deposit should be sent to account "123456789012"
-    And when the test deposit succeeds my KYC status should become "SUBMITTED"
+    Then my onboarding status should become "SUBMITTED"
     And I should see the "Under review" screen
+    And the "Bank account" entry should show "Confirming your account"
+    And a ₹1 test deposit should be sent to account "123456789012" in the background
 
   @happy-path
   Scenario: IFSC is converted to upper case
@@ -120,24 +123,6 @@ Feature: Caretaker payout account (Screen C5)
     Then the "Submit for review" button should be enabled
 
   @negative
-  Scenario: Test deposit fails
-    Given I have filled the payout form with valid data
-    And the ₹1 test deposit to the account fails
-    When I tap "Submit for review"
-    Then I should see the error "We couldn't send ₹1 to this account. Check the details and try again."
-    And I should remain on the "Payout account" screen
-    And my KYC status should not be "SUBMITTED"
-    And the entered values should be kept
-
-  @negative
-  Scenario: Account holder name does not match the bank's record
-    Given I have filled the payout form with valid data
-    And the bank returns a different account holder name for the test deposit
-    When I tap "Submit for review"
-    Then I should see the error "The account holder name doesn't match the bank's records"
-    And I should remain on the "Payout account" screen
-
-  @negative
   Scenario: Network failure while submitting
     Given I have filled the payout form with valid data
     And the device has no internet connection
@@ -151,13 +136,20 @@ Feature: Caretaker payout account (Screen C5)
     When I tap "Submit for review" twice quickly
     Then exactly one ₹1 test deposit should be sent
 
-  @edge-case
-  Scenario: App closed while the test deposit is pending
-    Given I tapped "Submit for review"
-    And the test deposit is still pending
-    When I close and relaunch the app
-    Then I should see the pending state "Confirming your account"
-    And when the deposit succeeds I should see the "Under review" screen
+  @happy-path
+  Scenario: Updating bank details after a failed check
+    Given I submitted my bank details
+    And the ₹1 test deposit to the account failed
+    When I open the "Payout account" screen from "Update bank details"
+    Then "Account holder name" should contain my saved account holder name
+    And "IFSC" should contain my saved IFSC
+    And "Account number" and "Re-enter account number" should be empty
+    When I enter "123456789099" in "Account number"
+    And I enter "123456789099" in "Re-enter account number"
+    And I tap "Submit for review"
+    Then I should see the "Under review" screen
+    And the "Bank account" entry should show "Confirming your account"
+    And a new ₹1 test deposit should be sent to account "123456789099" in the background
 
   @navigation
   Scenario: Back from Payout account returns to the checklist

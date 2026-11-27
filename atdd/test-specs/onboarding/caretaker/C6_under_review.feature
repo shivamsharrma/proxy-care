@@ -12,11 +12,14 @@ Feature: Caretaker application under review (Screen C6)
   #           or rejects the KYC (ADMIN-only endpoint). A rescheduled slot is stored as is, with no
   #           availability check. Those scenarios are tagged @IgnoreForMVP.
   # ASSUMPTION: an unapproved caretaker cannot go online on P1 (backlog "online gate").
+  # DECISION (2026-11-28): the ₹1 test deposit runs in the background after submission; its result is
+  #           the "Bank account" timeline entry. The account becomes ACTIVE only when the video KYC is
+  #           approved and the bank account is confirmed, in either order.
 
   Background:
     Given I am a caretaker who has submitted onboarding
     And my video KYC call is booked for "Tomorrow, 11:00 AM"
-    And my KYC status is "SUBMITTED"
+    And my onboarding status is "SUBMITTED"
     And I am on the "Under review" screen
 
   @smoke @happy-path @mvp-scope
@@ -24,6 +27,7 @@ Feature: Caretaker application under review (Screen C6)
     Then I should see the status timeline in this order:
       | entry                    | state   |
       | Details submitted        | Done    |
+      | Bank account             | Confirming |
       | Video KYC call           | Upcoming|
       | Approval                 | To do   |
     And the "Video KYC call" entry should show "Tomorrow, 11:00 AM"
@@ -68,8 +72,56 @@ Feature: Caretaker application under review (Screen C6)
     And the "Approval" entry should be marked "In progress"
 
   @happy-path
+  Scenario: Bank account confirmed
+    Given the ₹1 test deposit to my account succeeded
+    When I open the "Under review" screen
+    Then the "Bank account" entry should be marked "Done"
+
+  @negative
+  Scenario: Bank check failed
+    Given the ₹1 test deposit to my account failed
+    When I open the "Under review" screen
+    Then the "Bank account" entry should be marked "Failed"
+    And I should see the error "We couldn't send ₹1 to this account. Check the details and try again."
+    And I should see an "Update bank details" action
+
+  @negative
+  Scenario: Account holder name does not match the bank's record
+    Given the bank returned a different account holder name for the ₹1 test deposit
+    When I open the "Under review" screen
+    Then the "Bank account" entry should be marked "Failed"
+    And I should see the error "The account holder name doesn't match the bank's records"
+    And I should see an "Update bank details" action
+
+  @navigation
+  Scenario: Update bank details opens the payout form
+    Given the ₹1 test deposit to my account failed
+    When I tap "Update bank details"
+    Then I should see the "Payout account" screen
+
+  @edge-case
+  Scenario: App closed while the test deposit is pending
+    Given the ₹1 test deposit to my account is still pending
+    When I close and relaunch the app
+    Then I should see the "Under review" screen
+    And the "Bank account" entry should show "Confirming your account"
+
+  @negative
+  Scenario Outline: Video approved but bank account not confirmed
+    Given ops approves my video KYC
+    And my bank account check is "<bank>"
+    When I open the app
+    Then I should see the "Under review" screen
+
+    Examples:
+      | bank       |
+      | confirming |
+      | failed     |
+
+  @happy-path
   Scenario: Application approved
-    Given ops approves my application
+    Given ops approves my video KYC
+    And my bank account is confirmed
     When I open the app
     Then I should see the "Home (P1)" screen
     And I should see a confirmation that my account is approved
@@ -77,7 +129,7 @@ Feature: Caretaker application under review (Screen C6)
 
   @negative
   Scenario: Application rejected
-    Given ops rejects my application with a reason
+    Given ops rejects my video KYC with a reason
     When I open the app
     Then I should see that my application was not approved
     And I should see the rejection reason
