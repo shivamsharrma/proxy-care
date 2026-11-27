@@ -75,6 +75,15 @@ void main() {
       expect(mapped, isA<ServerException>());
       expect((mapped as ServerException).invalidResponse, isTrue);
     });
+
+    test('unknown wrapping the cast of the body is invalid', () {
+      final mapped = mapper.map(
+        _dio(DioExceptionType.unknown, error: TypeError()),
+      );
+
+      expect(mapped, isA<ServerException>());
+      expect((mapped as ServerException).invalidResponse, isTrue);
+    });
   });
 
   group('HTTP status codes', () {

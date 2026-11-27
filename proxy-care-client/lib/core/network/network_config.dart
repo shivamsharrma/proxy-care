@@ -32,18 +32,15 @@ abstract final class NetworkConfig {
   /// without one.
   static const Duration sendTimeout = Duration(seconds: 30);
 
-  /// Retries after the first attempt (see `RetryInterceptor`).
+  /// Retries of a failed GET after the first attempt.
   static const int maxRetries = 3;
 
-  /// Delay before the first retry; doubled for each further retry
-  /// (0.5 s, 1 s, 2 s).
-  static const Duration retryBaseDelay = Duration(milliseconds: 500);
-
-  /// The longest `Retry-After` (429 / 503) that `RetryInterceptor` waits
-  /// out by itself. The backend sends no `Retry-After` today. A longer one is not retried automatically: the error
-  /// reaches the caller with its `retryAfter`, so the screen can say when
-  /// to try again instead of hanging.
-  static const Duration maxRetryAfter = Duration(seconds: 10);
+  /// Waits before the first, second and third retry (0.5 s, 1 s, 2 s).
+  static const List<Duration> retryDelays = [
+    Duration(milliseconds: 500),
+    Duration(seconds: 1),
+    Duration(seconds: 2),
+  ];
 }
 
 /// HTTP header names and media types used by the client.
@@ -64,16 +61,6 @@ abstract final class ApiHeaders {
   /// backend today: it reads no `If-Match` and reports a version clash as
   /// 409 `CONCURRENT_MODIFICATION`.
   static const String ifMatch = 'If-Match';
-
-  /// Version of a versioned resource. The backend sends none today.
-  static const String etag = 'ETag';
-
-  /// Path of a created resource (201 Created).
-  static const String location = 'Location';
-
-  /// Seconds to wait before trying again (429, 503). The backend sends
-  /// none today.
-  static const String retryAfter = 'Retry-After';
 
   /// Media types the client accepts.
   static const String accept = 'Accept';

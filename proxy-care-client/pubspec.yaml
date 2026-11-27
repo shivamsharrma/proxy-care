@@ -23,7 +23,9 @@ dependencies:
   logger: ^2.8.0
   material_ui: ^1.11.0
   supabase_flutter: ^2.18.3
-
+  retrofit: ^4.10.0
+  uuid: ^4.6.0
+  dio_smart_retry: ^7.0.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -32,6 +34,7 @@ dev_dependencies:
   freezed: ^4.0.3
   json_serializable: ^6.15.2
   mocktail: ^1.0.5
+  retrofit_generator: ^10.3.3
 
 flutter:
   uses-material-design: true

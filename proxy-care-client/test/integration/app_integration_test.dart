@@ -13,12 +13,12 @@ import 'package:proxy_care_client/core/di/network_providers.dart';
 import 'package:proxy_care_client/core/di/platform_providers.dart';
 import 'package:proxy_care_client/core/di/router_providers.dart';
 import 'package:proxy_care_client/core/error/app_exception.dart';
-import 'package:proxy_care_client/core/network/api_client.dart';
 import 'package:proxy_care_client/core/network/dio_factory.dart';
 import 'package:proxy_care_client/core/router/deep_link_policy.dart';
 import 'package:proxy_care_client/core/router/redirect_destinations.dart';
 import 'package:proxy_care_client/core/router/router_options.dart';
 
+import '../helpers/dio_probe.dart';
 import '../helpers/auth_fakes.dart';
 import '../helpers/backend_api_error.dart';
 import '../helpers/fake_http_adapter.dart';
@@ -86,10 +86,9 @@ Future<_App> _launch(
         (ref) => DioFactory(
           baseUrl: ref.watch(envProvider).apiBaseUrl,
           tokens: ref.watch(authenticationSessionProvider),
-          recovery: ref.watch(sessionTokenRecoveryProvider),
           log: (_) {},
           adapter: http,
-          retryDelay: (_) async {},
+          retryDelays: const [],
         ).create(),
       ),
     ],
@@ -164,7 +163,6 @@ void main() {
       tester,
       auth: signedIn(),
       token: 'old',
-      tokenAfterRefresh: 'new',
     );
     var cleanups = 0;
     app.container
@@ -173,19 +171,17 @@ void main() {
     app.router.go('/home');
     await tester.pumpAndSettle();
 
-    // The API sees the token; a 401 is recovered by one refresh and replay.
-    app.http.enqueue([
-      respondApiError('UNAUTHENTICATED', status: 401),
-    ]);
-    await tester.runAsync(
-      () =>
-          app.container.read(apiClientProvider).get('/me', decode: ignoreBody),
-    );
+    // The API sees the session's current token, and the network layer
+    // never refreshes it.
+    final api = DioProbe(app.container.read(dioProvider));
+    await tester.runAsync(() => api.get('/me'));
+    app.session.token = 'new';
+    await tester.runAsync(() => api.get('/me'));
     expect(app.http.requests.map((r) => r.headers['Authorization']), [
       'Bearer old',
       'Bearer new',
     ]);
-    expect(app.session.refreshes, 1);
+    expect(app.session.refreshes, 0);
 
     // The session expires: the protected route is left and per-user data
     // is cleaned up.
@@ -204,7 +200,7 @@ void main() {
     ]);
     await tester.runAsync(
       () => expectLater(
-        app.container.read(apiClientProvider).get('/me', decode: ignoreBody),
+        DioProbe(app.container.read(dioProvider)).get('/me'),
         throwsAppException<UnauthorizedException>(),
       ),
     );

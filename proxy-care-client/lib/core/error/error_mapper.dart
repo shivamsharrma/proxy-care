@@ -151,7 +151,10 @@ final class ErrorMapper {
       case DioExceptionType.unknown:
         final inner = error.error;
         if (inner is AppException) return inner;
-        if (inner != null && isSerializationError(inner)) {
+        // A TypeError carried by Dio is its own cast of the response body
+        // (an object where a list is expected, text where an object is).
+        if (inner != null &&
+            (isSerializationError(inner) || inner is TypeError)) {
           return ServerException.invalidResponse(
             statusCode: error.response?.statusCode,
             cause: error,

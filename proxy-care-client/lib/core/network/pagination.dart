@@ -1,4 +1,6 @@
-import 'api_response.dart';
+import 'package:json_annotation/json_annotation.dart';
+
+part 'pagination.g.dart';
 
 /// A request for one page of a paginated collection, by page number:
 /// `?page=<0-based>&size=<n>` (the backend's Spring `Pageable`).
@@ -36,6 +38,12 @@ final class PageRequest {
 
 /// One page of a collection: the backend's `PageResponse`
 /// (`{items, page, size, totalElements, totalPages}`).
+///
+/// Use it as the return type of a Retrofit method
+/// (`Future<PageResponse<PatientDto>>`); the generated code calls
+/// [PageResponse.fromJson] with the item decoder. A body of the wrong shape
+/// fails as an invalid response (see `InvalidResponseLogger`).
+@JsonSerializable(genericArgumentFactories: true, createToJson: false)
 final class PageResponse<T> {
   /// Creates a page.
   const PageResponse({
@@ -46,7 +54,13 @@ final class PageResponse<T> {
     required this.totalPages,
   });
 
-  /// The items, in order. Unmodifiable when built by [pageDecoder].
+  /// Decodes a `PageResponse` body, each item with [fromJsonT].
+  factory PageResponse.fromJson(
+    Map<String, dynamic> json,
+    T Function(Object? json) fromJsonT,
+  ) => _$PageResponseFromJson(json, fromJsonT);
+
+  /// The items, in order.
   final List<T> items;
 
   /// The 0-based page number.
@@ -64,24 +78,3 @@ final class PageResponse<T> {
   /// Whether another page follows.
   bool get hasNext => page + 1 < totalPages;
 }
-
-/// Decodes a `PageResponse` body, each item with [decodeItem]. A body of
-/// the wrong shape fails as an invalid response (through the parser).
-JsonDecoder<PageResponse<T>> pageDecoder<T>(
-  T Function(Object? json) decodeItem,
-) => (json) {
-  final map = json! as Map<Object?, Object?>;
-  return PageResponse(
-    items: listDecoder(decodeItem)(map['items']),
-    page: map['page']! as int,
-    size: map['size']! as int,
-    totalElements: map['totalElements']! as int,
-    totalPages: map['totalPages']! as int,
-  );
-};
-
-/// Decodes a JSON list with [decodeItem].
-JsonDecoder<List<T>> listDecoder<T>(T Function(Object? json) decodeItem) =>
-    (json) => List<T>.unmodifiable(
-      (json! as List<Object?>).map(decodeItem),
-    );

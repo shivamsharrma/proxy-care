@@ -10,7 +10,6 @@ import 'package:proxy_care_client/core/error/repository_guard.dart';
 import 'package:proxy_care_client/core/error/serialization.dart';
 import 'package:proxy_care_client/core/logging/app_logger.dart';
 import 'package:proxy_care_client/core/logging/package_app_logger.dart';
-import 'package:proxy_care_client/core/network/api_client.dart';
 import 'package:proxy_care_client/shared/models/result.dart';
 
 import '../../helpers/backend_api_error.dart';
@@ -247,7 +246,6 @@ void main() {
           () => harness.client.put(
             '/users/me',
             body: const {},
-            decode: ignoreBody,
           ),
           reporter: r,
         );
