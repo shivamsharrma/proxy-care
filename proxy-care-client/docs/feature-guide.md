@@ -15,7 +15,7 @@ lib/features/visits/
 ├── data/
 │   ├── dto/visit_dto.dart (+ .g.dart)
 │   ├── mappers/visit_mapper.dart
-│   ├── datasources/visit_remote_data_source.dart
+│   ├── datasources/visit_api.dart (+ .g.dart)
 │   └── repositories/visit_repository_impl.dart
 ├── presentation/
 │   ├── controllers/upcoming_visits_controller.dart
@@ -98,32 +98,31 @@ Visit visitFromDto(VisitDto dto) => Visit(
 
 ## 6. Implement data sources
 
-Call `ApiClient` (never Dio), decode with a typed decoder, let errors
-propagate as `AppException`s.
+Declare the calls as a Retrofit interface (never use Dio directly) and let
+errors propagate as `AppException`s.
 
 ```dart
-// data/datasources/visit_remote_data_source.dart
-final class VisitRemoteDataSource {
-  const VisitRemoteDataSource(this._api);
-  final ApiClient _api;
+// data/datasources/visit_api.dart
+import 'package:dio/dio.dart';
+import 'package:retrofit/retrofit.dart';
 
-  Future<List<VisitDto>> upcoming() async {
-    final response = await _api.get(
-      '/visits', // resolved under <API_BASE_URL>/api/v1
-      query: {'status': 'upcoming'},
-      decode: (json) => [
-        for (final item in json! as List<Object?>)
-          VisitDto.fromJson(item! as Map<String, dynamic>),
-      ],
-    );
-    return response.data;
-  }
+part 'visit_api.g.dart';
+
+@RestApi()
+abstract class VisitApi {
+  factory VisitApi(Dio dio, {ParseErrorLogger? errorLogger}) = _VisitApi;
+
+  @GET('/visits') // resolved under <API_BASE_URL>/api/v1
+  Future<List<VisitDto>> upcoming(@Query('status') String status);
 }
 ```
 
-Use `upload`/`download` for files, `ApiRequestOptions` for idempotency
-keys, timeouts, retries and cancellation, and the pagination helpers for
-lists.
+Run `make gen` to generate `visit_api.g.dart`. DTOs use `json_serializable`.
+Return `HttpResponse<T>` when you need the headers, `PageResponse<T>` for
+pages (`@Query` the `page` and `size` of a `PageRequest`), and use
+`@Header(ApiHeaders.idempotencyKey)`, `@Extra({RequestExtra.skipAuth: true})`,
+`@MultiPart()`, `@CancelRequest()` and the progress annotations as
+described in ARCHITECTURE.md, "Networking".
 
 ## 7. Implement the repository
 
@@ -133,14 +132,14 @@ Wrap every operation in `guardResult`: it turns `AppException`s into typed
 ```dart
 // data/repositories/visit_repository_impl.dart
 final class VisitRepositoryImpl implements VisitRepository {
-  const VisitRepositoryImpl(this._remote, {required this.mapper, this.reporter});
-  final VisitRemoteDataSource _remote;
+  const VisitRepositoryImpl(this._api, {required this.mapper, this.reporter});
+  final VisitApi _api;
   final ErrorMapper mapper;
   final ErrorReporter? reporter;
 
   @override
   Future<Result<List<Visit>>> upcoming() => guardResult(
-    () async => [for (final dto in await _remote.upcoming()) visitFromDto(dto)],
+    () async => [for (final dto in await _api.upcoming('upcoming')) visitFromDto(dto)],
     mapper: mapper,
     reporter: reporter,
   );
@@ -166,7 +165,10 @@ Wire everything in `visits_providers.dart`, typed as interfaces:
 ```dart
 final visitRepositoryProvider = Provider<VisitRepository>(
   (ref) => VisitRepositoryImpl(
-    VisitRemoteDataSource(ref.watch(apiClientProvider)),
+    VisitApi(
+      ref.watch(dioProvider),
+      errorLogger: ref.watch(parseErrorLoggerProvider),
+    ),
     mapper: ref.watch(errorMapperProvider),
     reporter: ref.watch(errorReporterProvider),
   ),
@@ -268,7 +270,7 @@ element has a semantic label and the 48 px minimum target
 Mirror the folders under `test/features/<feature>/` ([TESTING.md](../TESTING.md)):
 
 - mappers and use cases: plain unit tests;
-- data source: `FakeHttpAdapter` responses, including backend errors
+- API interface: `FakeHttpAdapter` responses, including backend errors
   (`respondApiError`);
 - repository: success and every failure path (`isFailureOf<…>()`);
 - controller: `createTestContainer` with a fake repository

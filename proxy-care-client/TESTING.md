@@ -70,7 +70,7 @@ implements the interface over an in-memory map, with switchable failures
   input) and, where shared state exists, concurrent use (concurrent 401s
   sharing one refresh).
 - **Deterministic.** No real network, clock or randomness in assertions:
-  inject clocks and delays (`retryDelay`, `LoggingInterceptor` clock), use
+  inject delays (`DioFactory.retryDelays`), use
   fixed dates, await streams explicitly (`Future<void>.delayed(Duration.zero)`
   for one turn), and use `tester.runAsync` only for real asynchronous I/O
   (Dio) inside widget tests.

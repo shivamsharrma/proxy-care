@@ -7,7 +7,6 @@ Authentication infrastructure over Supabase Auth. See AUTHENTICATION.md.
   Pure Dart.
 - `authentication_session.dart`: `AuthenticationSession`, the app-facing
   session interface, `SessionRefreshException`, and the unconfigured session.
-- `session_token_recovery.dart`: what `AuthInterceptor` does after a 401.
 - `supabase/`: the only code that touches the Supabase SDK: the session
   implementation, secure `LocalStorage` and PKCE storage, initialization.
 - `authorization/`: roles, permissions and decisions (UI hints only).

@@ -480,11 +480,11 @@ Supabase Auth is the identity provider; details in
 
 | Layer | Pieces | May use |
 | --- | --- | --- |
-| `core/auth` | `AuthenticationSession`, `AuthenticationState`, `SessionTokenRecovery`, authorization, `BiometricGate` | `core/network` abstractions |
+| `core/auth` | `AuthenticationSession`, `AuthenticationState`, authorization, `BiometricGate` | `core/network` abstractions |
 | `core/auth/supabase` | `SupabaseAuthenticationSession`, secure `LocalStorage` / PKCE storage, `initializeSupabase` | Supabase SDK |
 | `core/security` | `SecureKeyValueStore` | `flutter_secure_storage` |
-| `core/network` | `AccessTokenProvider`, `UnauthorizedRecovery` | nothing from `core/auth` |
-| `core/di/auth_providers.dart` | `supabaseAuthClientProvider`, `authenticationSessionProvider`, `authenticationStateProvider`, `sessionTokenRecoveryProvider`, `authorizationServiceProvider`, `biometricGateProvider` | everything above |
+| `core/network` | `AccessTokenProvider` | nothing from `core/auth` |
+| `core/di/auth_providers.dart` | `supabaseAuthClientProvider`, `authenticationSessionProvider`, `authenticationStateProvider`, `authorizationServiceProvider`, `biometricGateProvider` | everything above |
 
 The Supabase SDK owns the token lifecycle (rotation, automatic refresh,
 concurrent-refresh de-duplication, lifecycle pause and resume, session
@@ -499,33 +499,53 @@ packages inside their folders.
 
 ## Networking
 
-All HTTP goes through `ApiClient` (`apiClientProvider`), used only by data
-sources. It is built on Dio, but no Dio type leaves `core/network` and
-`core/di/network_providers.dart`.
+Data sources declare their HTTP calls as [Retrofit](https://pub.dev/packages/retrofit)
+interfaces over the configured Dio (`dioProvider`). The generated
+implementation sends the request, decodes the JSON and returns typed DTOs.
+Dio and Retrofit types are used only in `core/network`,
+`core/di/network_providers.dart` and the data layer's API files; domain and
+presentation never import them (architecture test).
 
 ```dart
-// features/<feature>/data/datasources/profile_remote_source.dart
-Future<ProfileDto> fetchProfile() async {
-  final response = await _api.get(
-    '/me', // resolved under <API_BASE_URL>/api/v1
-    decode: (json) => ProfileDto.fromJson(json! as Map<String, dynamic>),
-  );
-  return response.data;
+// features/<feature>/data/datasources/profile_api.dart
+part 'profile_api.g.dart';
+
+@RestApi()
+abstract class ProfileApi {
+  factory ProfileApi(Dio dio, {ParseErrorLogger? errorLogger}) = _ProfileApi;
+
+  @GET('/me') // resolved under <API_BASE_URL>/api/v1
+  Future<ProfileDto> fetchProfile();
 }
+
+// features/<feature>/<feature>_providers.dart
+final profileApiProvider = Provider<ProfileApi>(
+  (ref) => ProfileApi(
+    ref.watch(dioProvider),
+    errorLogger: ref.watch(parseErrorLoggerProvider),
+  ),
+);
 ```
+
+Run `make gen` after adding or changing an API interface. DTOs use
+`json_serializable`; a body that does not match its DTO is a
+`ServerException.invalidResponse`: `InvalidResponseLogger` (the
+`errorLogger` above) converts the `TypeError` or `FormatException` raised
+while decoding, and `ErrorMapper` maps the one raised by Dio's own cast of
+the response body.
 
 ### Configuration
 
 `DioFactory` sets the base URL to `Env.apiBaseUrl` plus `/api/v1/`
 (`NetworkConfig.apiRoot`; `API_BASE_URL` stays the host, and its validation
-is unchanged), so data sources pass resource paths only (`/patients/p1`).
+is unchanged), so API interfaces pass resource paths only (`/patients/p1`).
 Dio joins base URL and path as strings and collapses a doubled `/`, so a
 path with or without a leading `/` lands under `/api/v1`; an absolute URL
 (another origin) ignores the base. It also sets timeouts of 10 s (connect),
-30 s (receive) and 30 s (send; only for requests with a body, because on
-web Dio warns about a send timeout without one), JSON content type and
-`Accept: application/json`. `PublicEndpoints`
-match the full path, including `/api/v1`.
+30 s (receive) and 30 s (send; a request without a body gets none, because
+on web Dio warns about a send timeout without one), JSON content type and
+`Accept: application/json`. `PublicEndpoints` match the full path,
+including `/api/v1`.
 
 ### Interceptor order
 
@@ -535,58 +555,58 @@ were added (checked against Dio's source and by `dio_factory_test.dart`):
 | # | Interceptor | Request phase | Response / error phase |
 | --- | --- | --- | --- |
 | 0 | `ImplyContentTypeInterceptor` (Dio) | content type | — |
-| 1 | `CorrelationIdInterceptor` | sets `X-Correlation-Id` (kept across retries) | — |
-| 2 | `LoggingInterceptor` | starts the timer | one line per attempt, including the 401 before a refresh |
-| 3 | `AuthInterceptor` | attaches `Authorization: Bearer` from `AccessTokenProvider` (not for `skipAuth`, public endpoints or other origins) | 401: token from `UnauthorizedRecovery` (newer or refreshed), replay once |
-| 4 | `RetryInterceptor` | — | transient failures: retry with backoff |
+| 1 | inline interceptor | no send timeout without a body | — |
+| 2 | `CorrelationIdInterceptor` | sets `X-Correlation-Id` (kept across retries) | — |
+| 3 | `LoggingInterceptor` | starts the timer | one line per attempt |
+| 4 | `AuthInterceptor` | attaches `Authorization: Bearer` from `AccessTokenProvider` (not for `skipAuth` or public endpoints) | — |
+| 5 | `RetryInterceptor` (`dio_smart_retry`) | — | transient failures of a GET: retry with backoff |
 
-A repeat (3) or retry (4) runs through the whole chain again, so it gets a
-fresh token and its own log line with the same correlation ID, and is marked
-so no interceptor starts another loop for it. Errors are mapped to
-`AppException`s once, by `DioApiClient`, after the chain.
+A retry (5) runs through the whole chain again, so it gets a fresh token
+and its own log line with the same correlation ID. Errors leave the chain
+as `DioException`s; `guardResult` maps them to `AppException`s with
+`ErrorMapper` (see [Errors](#errors)).
 
 ### Retries
 
-GET only, by default: connection errors, connection timeouts and HTTP 502,
-503, 504, and a 429 that carries `Retry-After`; at most 3 retries,
-0.5 s / 1 s / 2 s apart. On a 429 or 503, `Retry-After` (seconds) is
-honoured: the wait is at least that long; one longer than
-`NetworkConfig.maxRetryAfter` (10 s) is not waited out, and the error
-reaches the caller with its `retryAfter`. The backend sends no 429 and no
-`Retry-After` today. Never: cancelled requests, other
-methods (unless the request passes `RetryPolicy.always`, for example with
-an idempotency key), or `RetryPolicy.never`.
+GET only: connection errors, timeouts and HTTP 502, 503, 504; at most 3
+retries, 0.5 s / 1 s / 2 s apart (`NetworkConfig`). Never: other methods
+(the backend does not enforce idempotency keys, so a repeated write could
+happen twice), cancelled requests and every other status. A `Retry-After`
+header is not honoured; `ErrorMapper` still puts it on the exception as
+`ServerException.retryAfter` for the screen. The 401 is not retried or
+refreshed by the app: the Supabase SDK refreshes tokens before they expire.
 
 ### Responses
 
-A 2xx is a success. The backend sends bare JSON (no envelope), and
-`ResponseParser` hands the whole body to the typed decoder (JSON text is
-decoded first). Empty bodies (204) decode as `null`; a body the decoder
-cannot read is `ServerException.invalidResponse`. `ApiResponse.headers` keeps the response
-headers (lower-case names), with `etag` and `location` getters. Non-2xx
-responses are mapped by `ErrorMapper` (see [Errors](#errors)).
+A 2xx is a success and the backend sends bare JSON (no envelope), which
+Retrofit decodes into the declared type. Return `HttpResponse<T>` instead
+of `T` when the headers matter: `response.response.headers.value('etag')`
+(the backend sends none today). Non-2xx responses reach `guardResult` as
+`DioException`s and are mapped by `ErrorMapper`.
 
-### Request options
+### Per-request settings
 
-`ApiRequestOptions` carries per-request headers, receive / send timeouts,
-`RequestCancellation`, `RetryPolicy`, an idempotency key (sent as
-`Idempotency-Key`; generate with `IdempotencyKey.generate()`) and
-`ifMatch` (sent as `If-Match`: the stored `ApiResponse.etag` of the
-version being updated) and `skipAuth` (sign-in and token-refresh calls).
-`Idempotency-Key` and `If-Match` are not enforced by the backend today: it
-has no idempotency filter, sends no `ETag` and reports a version clash as
-409 `CONCURRENT_MODIFICATION`.
+Use Retrofit's annotations: `@Header(ApiHeaders.idempotencyKey)` (generate
+with `IdempotencyKey.generate()`) and `@Header(ApiHeaders.ifMatch)` (the
+stored `ETag` of the version being updated);
+`@Extra({RequestExtra.skipAuth: true})` for sign-in and token calls;
+`@CancelRequest()` with a `CancelToken` to cancel; `@SendProgress()` /
+`@ReceiveProgress()`; `@MultiPart()` with `@Part()` for uploads;
+`@DioResponseType(ResponseType.bytes)` for downloads. `Idempotency-Key` and
+`If-Match` are not enforced by the backend today: it has no idempotency
+filter, sends no `ETag` and reports a version clash as 409
+`CONCURRENT_MODIFICATION`.
+
 Pagination is by page number, as the backend's Spring `Pageable`:
-`PageRequest` (`?page=…&size=…`, 0-based, size 20 by default, 1–100) and
-`pageDecoder`, which reads `PageResponse{items, page, size, totalElements,
-totalPages}` (`hasNext`; `PageRequest.next` asks for the following page).
+`PageRequest` (`?page=…&size=…`, 0-based, size 20 by default, 1–100; pass
+`page` and `size` as `@Query` parameters) and `PageResponse<T>` as the
+return type (`{items, page, size, totalElements, totalPages}`; `hasNext`;
+`PageRequest.next` asks for the following page).
 
 ### Logging and privacy
 
-Each attempt is logged as method, path, status and duration. Hosts, query
-values, headers and bodies are not logged; debug builds add headers with
-secrets masked and query parameter names. Body logging is off and, if
-enabled, masks credentials and personal or health fields (`Redactor`).
+Each attempt is logged as method, path, status, duration and correlation ID
+(plus the retry number). Hosts, query, headers and bodies are not logged.
 
 ## Navigation
 

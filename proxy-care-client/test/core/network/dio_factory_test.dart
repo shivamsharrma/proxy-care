@@ -1,16 +1,14 @@
 import 'package:dio/dio.dart';
+import 'package:dio_smart_retry/dio_smart_retry.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proxy_care_client/core/di/network_providers.dart';
-import 'package:proxy_care_client/core/network/api_client.dart';
 import 'package:proxy_care_client/core/auth/authentication_session.dart';
 import 'package:proxy_care_client/core/di/auth_providers.dart';
-import 'package:proxy_care_client/core/network/access_token_provider.dart';
-import 'package:proxy_care_client/core/network/dio_api_client.dart';
 import 'package:proxy_care_client/core/network/dio_factory.dart';
 import 'package:proxy_care_client/core/network/interceptors/auth_interceptor.dart';
 import 'package:proxy_care_client/core/network/interceptors/correlation_id_interceptor.dart';
 import 'package:proxy_care_client/core/network/interceptors/logging_interceptor.dart';
-import 'package:proxy_care_client/core/network/interceptors/retry_interceptor.dart';
+import 'package:proxy_care_client/core/network/invalid_response_logger.dart';
 
 import '../../fixtures/env_fixtures.dart';
 import '../../helpers/backend_api_error.dart';
@@ -86,8 +84,8 @@ void main() {
         ],
       );
 
-      await harness.client.get('/patients/p1', decode: ignoreBody);
-      await harness.client.get('patients', decode: ignoreBody);
+      await harness.client.get('/patients/p1');
+      await harness.client.get('patients');
 
       expect(
         harness.adapter.requests.map((r) => r.uri.toString()),
@@ -137,13 +135,14 @@ void main() {
     test('the factory installs correlation, logging, auth, retry', () {
       final dio = DioFactory(
         baseUrl: Uri.parse('https://api.proxycare.test'),
-        tokens: const NoAccessTokenProvider(),
+        tokens: FakeTokens(),
         log: (_) {},
       ).create();
 
       final types = dio.interceptors.map((i) => i.runtimeType).toList();
       expect(types.first.toString(), 'ImplyContentTypeInterceptor');
       expect(types.skip(1), [
+        InterceptorsWrapper,
         CorrelationIdInterceptor,
         LoggingInterceptor,
         AuthInterceptor,
@@ -159,7 +158,7 @@ void main() {
           responses: [respondJson(const <String, Object?>{})],
         );
 
-        await harness.client.get('/me', decode: ignoreBody);
+        await harness.client.get('/me');
 
         final sent = harness.adapter.requests.single;
         expect(sent.headers['Authorization'], 'Bearer access-1');
@@ -168,19 +167,19 @@ void main() {
       },
     );
 
-    test('logging records the 401 before auth recovers from it', () async {
+    test('logging records a failed attempt before it is retried', () async {
       final harness = NetworkHarness(
-        tokens: FakeTokens(token: 'old', recovered: 'new'),
+        tokens: FakeTokens(token: 'old'),
         responses: [
-          respondApiError('UNAUTHENTICATED', status: 401),
+          respondApiError('EXTERNAL_SERVICE_UNAVAILABLE', status: 503),
           respondJson(const <String, Object?>{}),
         ],
       );
 
-      await harness.client.get('/me', decode: ignoreBody);
+      await harness.client.get('/me');
 
       expect(harness.logs, hasLength(2));
-      expect(harness.logs.first, contains('→ 401'));
+      expect(harness.logs.first, contains('→ 503'));
       expect(harness.logs.last, contains('→ 200'));
     });
   });
@@ -194,11 +193,10 @@ void main() {
         ],
       );
 
-      await harness.client.get('/visits', decode: ignoreBody);
+      await harness.client.get('/visits');
       await harness.client.post(
         '/visits',
         body: const {'patientId': 'p1'},
-        decode: ignoreBody,
       );
 
       expect(harness.adapter.requests[0].sendTimeout, Duration.zero);
@@ -213,7 +211,7 @@ void main() {
     });
   });
 
-  test('providers build the client from the environment', () async {
+  test('providers build Dio from the environment', () async {
     final container = createTestContainer(
       env: testEnv(apiBaseUrl: 'https://api.proxycare.test'),
     );
@@ -222,7 +220,10 @@ void main() {
     expect(await container.read(supabaseAuthClientProvider.future), isNull);
     final dio = container.read(dioProvider);
     expect(dio.options.baseUrl, 'https://api.proxycare.test/api/v1/');
-    expect(container.read(apiClientProvider), isA<DioApiClient>());
+    expect(
+      container.read(parseErrorLoggerProvider),
+      isA<InvalidResponseLogger>(),
+    );
     expect(
       container.read(authenticationSessionProvider),
       isA<UnconfiguredAuthenticationSession>(),

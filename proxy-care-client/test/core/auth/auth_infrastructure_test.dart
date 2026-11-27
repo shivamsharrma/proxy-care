@@ -8,7 +8,6 @@ import 'package:proxy_care_client/core/auth/authentication_session.dart';
 import 'package:proxy_care_client/core/auth/authentication_state.dart';
 import 'package:proxy_care_client/core/auth/authorization/authorization.dart';
 import 'package:proxy_care_client/core/auth/biometric_gate.dart';
-import 'package:proxy_care_client/core/auth/session_token_recovery.dart';
 import 'package:proxy_care_client/core/auth/supabase/secure_supabase_storage.dart';
 import 'package:proxy_care_client/core/auth/supabase/supabase_initializer.dart';
 import 'package:proxy_care_client/core/config/app_variant.dart';
@@ -206,60 +205,6 @@ void main() {
       expect(source, isNot(contains('SharedPreferencesLocalStorage')));
       expect(source, isNot(contains('EmptyLocalStorage')));
     }
-  });
-
-  group('SessionTokenRecovery', () {
-    test('reuses a newer token without refreshing', () async {
-      final session = FakeAuthenticationSession(token: 'newer');
-
-      expect(
-        await SessionTokenRecovery(session).recoverAccessToken(
-          rejectedToken: 'old',
-        ),
-        'newer',
-      );
-      expect(session.refreshes, 0);
-    });
-
-    test('refreshes when the rejected token is still current', () async {
-      final session = FakeAuthenticationSession(
-        token: 'old',
-        tokenAfterRefresh: 'new',
-      );
-
-      expect(
-        await SessionTokenRecovery(session).recoverAccessToken(
-          rejectedToken: 'old',
-        ),
-        'new',
-      );
-      expect(session.refreshes, 1);
-    });
-
-    test('a failed refresh gives no token, without invalidating', () async {
-      final session = FakeAuthenticationSession(token: 'old')
-        ..refreshError = const SessionRefreshException(sessionInvalid: false);
-
-      expect(
-        await SessionTokenRecovery(session).recoverAccessToken(
-          rejectedToken: 'old',
-        ),
-        isNull,
-      );
-      expect(session.invalidations, 0);
-    });
-
-    test('signed out: nothing to recover', () async {
-      final session = FakeAuthenticationSession();
-
-      expect(
-        await SessionTokenRecovery(session).recoverAccessToken(
-          rejectedToken: 'old',
-        ),
-        isNull,
-      );
-      expect(session.refreshes, 0);
-    });
   });
 
   group('authentication state provider', () {

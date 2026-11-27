@@ -124,7 +124,7 @@ proxy-care-client/
 │   │   ├── l10n/            ARB strings and generated localizations
 │   │   ├── lifecycle/       App lifecycle phases
 │   │   ├── logging/         AppLogger with redaction
-│   │   ├── network/         ApiClient, Dio factory, interceptors
+│   │   ├── network/         Dio factory, interceptors, pagination
 │   │   ├── notifications/   Push notification interfaces
 │   │   ├── observability/   Analytics and performance interfaces
 │   │   ├── platform/        Platform information
@@ -217,20 +217,19 @@ are committed: after changing an annotated model or an ARB file run
 
 ## API integration
 
-Repositories call the backend through `ApiClient` (`apiClientProvider`),
-never Dio directly. Requests go to `<API_BASE_URL>/api/v1`. The client
-reads bare JSON success bodies (a 2xx is a success) with a typed decoder,
-maps the backend's `ApiError` bodies to
-exceptions, exposes `ETag` and sends `If-Match` (not enforced by the
-backend today; a version clash is 409 `CONCURRENT_MODIFICATION`), sends
-JSON, supports multipart uploads, downloads, page-number pagination, idempotency
-keys (not enforced by the backend today) and cancellation, and throws only
-`AppException`s. Interceptors, in
-order: correlation ID, logging (redacted), authentication (bearer token,
-one replay after a 401), retry (GET only on 502/503/504, 429 with
-`Retry-After`, and transient connection errors; bounded backoff that
-honours `Retry-After`; the backend sends no `Retry-After` today). Details:
-ARCHITECTURE.md, "Networking".
+Repositories call the backend through Retrofit API interfaces built from
+`dioProvider` (never Dio directly in domain or presentation). Requests go
+to `<API_BASE_URL>/api/v1`. Success bodies are bare JSON (a 2xx is a
+success) decoded into typed DTOs; the backend's `ApiError` bodies are mapped
+to exceptions by `ErrorMapper` inside `guardResult`. The layer supports
+multipart uploads, downloads, page-number pagination, idempotency keys and
+`If-Match` (neither enforced by the backend today; a version clash is 409
+`CONCURRENT_MODIFICATION`) and cancellation. Interceptors, in order:
+correlation ID, logging (method, path, status, duration), authentication
+(bearer token; no refresh or replay, the Supabase SDK refreshes tokens), and
+retry (`dio_smart_retry`: GET only, on 502/503/504, connection errors and
+timeouts; 3 retries, 0.5 s / 1 s / 2 s). Details: ARCHITECTURE.md,
+"Networking".
 
 ## Error handling
 

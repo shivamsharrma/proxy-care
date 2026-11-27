@@ -5,7 +5,6 @@ import '../auth/authentication_session.dart';
 import '../auth/authentication_state.dart';
 import '../auth/authorization/authorization.dart';
 import '../auth/biometric_gate.dart';
-import '../auth/session_token_recovery.dart';
 import '../auth/supabase/secure_supabase_storage.dart';
 import '../auth/supabase/supabase_authentication_session.dart';
 import '../auth/supabase/supabase_initializer.dart';
@@ -50,11 +49,6 @@ final authenticationSessionProvider = Provider<AuthenticationSession>((ref) {
   ref.onDispose(session.dispose);
   return session;
 });
-
-/// Recovers a token after a 401 (used by the networking layer).
-final sessionTokenRecoveryProvider = Provider<SessionTokenRecovery>(
-  (ref) => SessionTokenRecovery(ref.watch(authenticationSessionProvider)),
-);
 
 /// The current authentication state, kept in sync with the session.
 final authenticationStateProvider =

@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proxy_care_client/core/network/pagination.dart';
-import 'package:proxy_care_client/core/network/response_parser.dart';
 
 import '../../helpers/decoding_fixtures.dart';
 import '../../helpers/fake_http_adapter.dart';
@@ -133,11 +132,12 @@ void main() {
     });
   });
 
-  group('pageDecoder', () {
-    const parser = ResponseParser();
+  group('PageResponse.fromJson', () {
+    PageResponse<TestItem> decode(Map<String, dynamic> body) =>
+        PageResponse.fromJson(body, TestItem.fromJson);
 
     test('decodes a PageResponse body into a page', () {
-      final response = parser.parse(
+      final page = decode(
         _pageBody(
           [
             {'id': 'a1', 'label': 'First'},
@@ -148,42 +148,29 @@ void main() {
           totalElements: 5,
           totalPages: 3,
         ),
-        pageDecoder(TestItem.fromJson),
-        statusCode: 200,
       );
 
-      final page = response.data;
-      expect(page, isA<PageResponse<TestItem>>());
       expect(page.items.map((item) => item.id), ['a1', 'a2']);
       expect(page.page, 0);
       expect(page.size, 2);
       expect(page.totalElements, 5);
       expect(page.totalPages, 3);
       expect(page.hasNext, isTrue);
-      expect(() => page.items.add(page.items.first), throwsUnsupportedError);
     });
 
     test('decodes an empty page', () {
-      final page = parser
-          .parse(
-            _pageBody(
-              const [],
-              page: 0,
-              size: 20,
-              totalElements: 0,
-              totalPages: 0,
-            ),
-            pageDecoder(TestItem.fromJson),
-            statusCode: 200,
-          )
-          .data;
+      final page = decode(
+        _pageBody(const [], page: 0, size: 20, totalElements: 0, totalPages: 0),
+      );
 
       expect(page.items, isEmpty);
       expect(page.hasNext, isFalse);
     });
 
-    test('a malformed PageResponse body is an invalid response', () {
-      for (final body in <Object?>[
+    test('a malformed PageResponse body fails with a TypeError', () {
+      // The Retrofit-generated call turns it into an invalid response (see
+      // the "paging through the API" group).
+      for (final body in <Map<String, Object?>>[
         {'page': 0, 'size': 20, 'totalElements': 0, 'totalPages': 0},
         {
           'items': 'a1',
@@ -200,9 +187,6 @@ void main() {
           'totalPages': 0,
         },
         {'items': const <Object?>[], 'page': 0, 'size': 20},
-        [
-          {'id': 'a1', 'label': 'First'},
-        ],
         {
           'items': [
             {'id': 1},
@@ -213,27 +197,19 @@ void main() {
           'totalPages': 1,
         },
       ]) {
-        expect(
-          () => parser.parse(
-            body,
-            pageDecoder(TestItem.fromJson),
-            statusCode: 200,
-          ),
-          throwsInvalidResponse,
-          reason: '$body',
-        );
+        expect(() => decode(body), throwsA(isA<TypeError>()), reason: '$body');
       }
     });
   });
 
-  group('paging through the client', () {
+  group('paging through the API', () {
     test('reads pages by number and stops after the last one', () async {
       final harness = NetworkHarness(
         responses: [
           respondJson(
             _pageBody(
               [
-                {'id': 'a1', 'label': 'First'},
+                {'id': 'a1', 'name': 'First'},
               ],
               page: 0,
               size: 1,
@@ -244,7 +220,7 @@ void main() {
           respondJson(
             _pageBody(
               [
-                {'id': 'a2', 'label': 'Second'},
+                {'id': 'a2', 'name': 'Second'},
               ],
               page: 1,
               size: 1,
@@ -256,17 +232,9 @@ void main() {
       );
       const first = PageRequest(size: 1);
 
-      final page1 = (await harness.client.get(
-        '/items',
-        query: first.toQuery(),
-        decode: pageDecoder(TestItem.fromJson),
-      )).data;
+      final page1 = await harness.api.page(first.page, first.size);
       final second = first.next(page1)!;
-      final page2 = (await harness.client.get(
-        '/items',
-        query: second.toQuery(),
-        decode: pageDecoder(TestItem.fromJson),
-      )).data;
+      final page2 = await harness.api.page(second.page, second.size);
 
       expect(page1.items.single.id, 'a1');
       expect(page1.hasNext, isTrue);
@@ -291,11 +259,7 @@ void main() {
       );
 
       await expectLater(
-        harness.client.get(
-          '/items',
-          query: const PageRequest().toQuery(),
-          decode: pageDecoder(TestItem.fromJson),
-        ),
+        harness.api.page(const PageRequest().page, const PageRequest().size),
         throwsInvalidResponse,
       );
     });

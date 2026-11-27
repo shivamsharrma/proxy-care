@@ -73,10 +73,9 @@ Summary of [AUTHENTICATION.md](AUTHENTICATION.md):
   pauses in the background, de-duplicates concurrent refreshes and rotates
   the single-use refresh token. The app has no scheduler or token store of
   its own.
-- **401 handling:** `AuthInterceptor` reuses a newer token if the SDK
-  already has one, otherwise asks for one refresh, then replays the request
-  **once**; concurrent 401s share one refresh (tested). A 401 alone never
-  ends the session.
+- **401 handling:** `AuthInterceptor` only attaches the token; it does not
+  refresh or repeat a request. A 401 reaches the caller as
+  `UnauthorizedException` and never ends the session by itself.
 - **Invalidation:** a rejected refresh token ends the session
   (`SessionExpired`) and deletes the stored session; signing out
   (`invalidateSession`) signs out locally and deletes it even if the SDK
