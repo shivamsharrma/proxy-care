@@ -19,7 +19,7 @@ import org.springframework.test.web.servlet.ResultActions;
  * checklist from the steps and routes on the statuses: IN_PROGRESS to the checklist, SUBMITTED to Under review,
  * ACTIVE to Home.
  */
-class CaretakerKycControllerTest extends IntegrationTest {
+class CaretakerControllerTest extends IntegrationTest {
 
     private static final String PHONE = "+919988776655";
     private static final String OTHER_PHONE = "+919800000000";

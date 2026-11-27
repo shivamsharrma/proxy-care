@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/caretakers")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('CARETAKER')")
-public class CaretakerKycController {
+public class CaretakerController {
 
     private final ICaretakerService caretakerService;
 
