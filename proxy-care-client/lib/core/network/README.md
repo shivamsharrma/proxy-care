@@ -1,33 +1,34 @@
 # core/network
 
-The HTTP layer, built on Dio. See ARCHITECTURE.md, "Networking".
+The HTTP layer, built on Dio. Data sources declare their calls as Retrofit
+interfaces over the Dio from `dioProvider`. See ARCHITECTURE.md,
+"Networking".
 
-- `api_client.dart`: `ApiClient`, the only API the data layer uses (GET,
-  POST, PUT, PATCH, DELETE, multipart upload, download). Throws only
-  `AppException`s.
-- `dio_api_client.dart`: the Dio implementation; maps Dio errors with
-  `ErrorMapper`.
 - `dio_factory.dart`: `BaseOptions` (`<API_BASE_URL>/api/v1/`, 10 / 30 /
-  30 s timeouts, JSON) and the interceptor order.
-- `interceptors/`: correlation ID, logging (with `Redactor` from `core/security`), auth,
-  retry.
-- `response_parser.dart`, `api_response.dart`: typed parsing of bare JSON
-  bodies and `PageResponse` pages (`pageDecoder`); response headers
-  (`ETag`, `Location`).
-- `request_options.dart`: per-request headers, timeouts, cancellation,
-  retry policy, idempotency key, `If-Match` (idempotency and `If-Match` are
-  not enforced by the backend today; a version clash is 409
-  `CONCURRENT_MODIFICATION`), `skipAuth`.
-- `access_token_provider.dart`: `AccessTokenProvider` and
-  `UnauthorizedRecovery`, the only authentication abstractions the
-  interceptor knows (implemented in `core/auth`); `public_endpoints.dart`;
-  `request_replay.dart` (which bodies may be sent twice).
-- `pagination.dart`, `transfer.dart`, `idempotency_key.dart`,
-  `network_config.dart`.
+  30 s timeouts, JSON), no send timeout without a body, and the interceptor
+  order.
+- `interceptors/`: correlation ID, logging (one line per attempt, no
+  headers, query or bodies), auth (bearer token only).
+- Retry is `dio_smart_retry`, configured in `dio_factory.dart`: GET only, on
+  connection errors, timeouts and 502 / 503 / 504; `network_config.dart`
+  holds the retry count and delays.
+- `invalid_response_logger.dart`: `InvalidResponseLogger`, the `errorLogger`
+  of every Retrofit API class; a body that does not match its DTO becomes
+  `ServerException.invalidResponse`.
+- `request_options.dart`: `RequestExtra` keys (`skipAuth`, set with
+  Retrofit's `@Extra`).
+- `access_token_provider.dart`: `AccessTokenProvider`, the only
+  authentication abstraction the interceptor knows (implemented in
+  `core/auth`); `public_endpoints.dart`.
+- `pagination.dart`: `PageRequest` and `PageResponse<T>` (decoded by Retrofit
+  through `PageResponse.fromJson`).
+- `idempotency_key.dart`, `network_config.dart` (constants and
+  `ApiHeaders`).
 
 Rules:
 
-- Dio types stay in this folder and in `core/di/network_providers.dart`;
-  domain and presentation never import them (architecture test).
+- Dio types stay in this folder, in `core/di/network_providers.dart` and in
+  the data layer's Retrofit API files; domain and presentation never import
+  Dio or Retrofit (architecture test).
 - Nothing here knows about a feature or an endpoint.
 - Never log tokens, bodies or personal data.

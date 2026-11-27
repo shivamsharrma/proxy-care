@@ -31,7 +31,6 @@ checked in the 2.18.3 source.
                                                   └ web: WebCrypto + browser storage
 
       core/network:  AuthInterceptor ── AccessTokenProvider   ◄─ AuthenticationSession
-                                     └─ UnauthorizedRecovery  ◄─ SessionTokenRecovery
 ```
 
 Boundaries (enforced by `test/architecture/dependency_rules_test.dart`):
@@ -39,7 +38,7 @@ Boundaries (enforced by `test/architecture/dependency_rules_test.dart`):
 - Supabase SDK types appear only in `core/auth/supabase/` and `core/di/`.
 - `flutter_secure_storage` appears only in `core/security/`.
 - `core/network` never imports `core/auth` or Supabase: the interceptor only
-  sees `AccessTokenProvider` and `UnauthorizedRecovery`.
+  sees `AccessTokenProvider`.
 - `AuthenticationState` and the authorization types are pure Dart, so the
   domain layer may use them.
 
@@ -55,8 +54,7 @@ Boundaries (enforced by `test/architecture/dependency_rules_test.dart`):
 | Persisting and restoring the session | Supabase SDK, through our secure `LocalStorage` |
 | Where the session is stored | `SecureSupabaseLocalStorage` → `SecureKeyValueStore` |
 | Mapping SDK events to app states | `SupabaseAuthenticationSession` |
-| Attaching the token to API requests; one replay after a 401 | `AuthInterceptor` |
-| Deciding which token to replay with | `SessionTokenRecovery` |
+| Attaching the token to API requests | `AuthInterceptor` |
 
 The app has no refresh scheduler, no refresh-token store and no refresh
 coordinator of its own.
@@ -136,20 +134,14 @@ agreed with the backend yet, so the default reads no roles.
 
 - **Request:** attaches `Authorization: Bearer <token>` from
   `AccessTokenProvider` (the session). No token → no header. No token for
-  `skipAuth` requests, paths in `PublicEndpoints` (empty for now) or any
-  other origin than `API_BASE_URL`. `getAccessToken` asks the SDK to refresh
-  first when the token is within the SDK's 30 s expiry margin.
-- **401** on a request that carried a token: `SessionTokenRecovery`
-  1. returns the current token if it differs from the rejected one (the
-     SDK already refreshed: no new refresh);
-  2. otherwise calls `refreshSession()` on the SDK (de-duplicated by the SDK
-     across concurrent 401s) and returns the new token;
-  3. returns nothing if the refresh fails.
-
-  With a new token the request is replayed **once** (headers, query,
-  cancel token and idempotency key kept; multipart bodies recreated;
-  consumed streams never replayed). The replay is marked, so a second 401
-  is final and returned to the caller as `UnauthorizedException`.
+  `skipAuth` requests or paths in `PublicEndpoints` (empty for now).
+  `getAccessToken` asks the SDK to refresh first when the token is within
+  the SDK's 30 s expiry margin. The token is read again for every request,
+  so a request made after the SDK rotated it uses the new one.
+- **401:** the app does not refresh or repeat the request. The 401 reaches
+  the caller as `UnauthorizedException`; the SDK refreshes tokens before
+  they expire, so a 401 normally means the endpoint rejected the token for
+  its own reasons.
 - A 401 does not by itself end the session: an endpoint can reject a valid
   token for its own reasons. The session ends only when the SDK reports the
   session invalid (rejected refresh token), which moves the state to
