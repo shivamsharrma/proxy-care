@@ -34,6 +34,9 @@ public enum ErrorCode {
     APP_USER_ALREADY_EXISTS(HttpStatus.CONFLICT),
     PATIENT_NOT_FOUND(HttpStatus.NOT_FOUND),
 
+    // Caretaker
+    CARETAKER_NOT_FOUND(HttpStatus.NOT_FOUND),
+
     // External service errors
     EXTERNAL_SERVICE_ERROR(HttpStatus.BAD_GATEWAY),
     EXTERNAL_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE),

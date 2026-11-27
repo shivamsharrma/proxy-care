@@ -180,6 +180,60 @@ public class TestDb {
         return offsetDateTime == null ? null : offsetDateTime.toInstant();
     }
 
+    /**
+     * Inserts a caretakers row for an existing profile. The statuses are the enum names (status PENDING / ACTIVE /
+     * BLOCKED, onboardingStatus IN_PROGRESS / SUBMITTED / COMPLETED, videoVerificationStatus PENDING / APPROVED /
+     * REJECTED, bankVerificationStatus null / PENDING / VERIFIED / FAILED). Returns its id.
+     */
+    public UUID insertCaretaker(
+            UUID profileId,
+            String status,
+            String onboardingStatus,
+            String videoVerificationStatus,
+            String bankVerificationStatus,
+            int kycStep) {
+        return jdbcTemplate.queryForObject(
+                """
+                insert into caretakers (profile_id, status, onboarding_status, video_verification_status,
+                                        bank_verification_status, kyc_step, created_at, updated_at, version)
+                values (?, ?, ?, ?, ?, ?::smallint, now(), now(), 0)
+                returning id
+                """,
+                UUID.class,
+                profileId,
+                status,
+                onboardingStatus,
+                videoVerificationStatus,
+                bankVerificationStatus,
+                kycStep);
+    }
+
+    /** Inserts a caretaker still onboarding (PENDING, IN_PROGRESS, video PENDING, no bank status) at {@code kycStep}. */
+    public UUID insertOnboardingCaretaker(UUID profileId, int kycStep) {
+        return insertCaretaker(profileId, "PENDING", "IN_PROGRESS", "PENDING", null, kycStep);
+    }
+
+    /** The stored caretakers row of a profile, or null when it has none. */
+    public CaretakerRow caretakerOf(UUID profileId) {
+        List<CaretakerRow> caretakerRows = jdbcTemplate.query(
+                """
+                select id, profile_id, status, onboarding_status, video_verification_status, bank_verification_status,
+                       kyc_step, rejected_reason
+                from caretakers where profile_id = ?
+                """,
+                (resultSet, rowNumber) -> new CaretakerRow(
+                        resultSet.getObject("id", UUID.class),
+                        resultSet.getObject("profile_id", UUID.class),
+                        resultSet.getString("status"),
+                        resultSet.getString("onboarding_status"),
+                        resultSet.getString("video_verification_status"),
+                        resultSet.getString("bank_verification_status"),
+                        resultSet.getObject("kyc_step", Integer.class),
+                        resultSet.getString("rejected_reason")),
+                profileId);
+        return caretakerRows.isEmpty() ? null : caretakerRows.get(0);
+    }
+
     /** Row count of a table; {@code table} is a literal from test code, e.g. "auth.users". */
     public long count(String table) {
         return jdbcTemplate.queryForObject("select count(*) from " + table, Long.class);

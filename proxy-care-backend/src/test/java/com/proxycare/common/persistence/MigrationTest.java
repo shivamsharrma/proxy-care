@@ -1,12 +1,14 @@
 package com.proxycare.common.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.proxycare.support.IntegrationTest;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 class MigrationTest extends IntegrationTest {
@@ -176,6 +178,69 @@ class MigrationTest extends IntegrationTest {
                 Long.class);
 
         assertThat(enumTypeCount).isZero();
+    }
+
+    @Test
+    void caretakersMigrationApplied() {
+        Long appliedCount = jdbcTemplate.queryForObject(
+                "select count(*) from flyway_schema_history where success and version = '11'", Long.class);
+
+        assertThat(appliedCount).isEqualTo(1);
+    }
+
+    // bank_verification_status is null until the payout account is first submitted.
+    @Test
+    void caretakersHaveTheBaseEntityAndStatusColumns() {
+        List<String> caretakerColumns = jdbcTemplate.queryForList(
+                """
+                select column_name || ' ' || udt_name || ' ' || is_nullable from information_schema.columns
+                where table_schema = 'public' and table_name = 'caretakers'
+                """,
+                String.class);
+
+        assertThat(caretakerColumns).containsExactlyInAnyOrder(
+                "id uuid NO",
+                "created_at timestamptz NO",
+                "updated_at timestamptz NO",
+                "version int8 NO",
+                "profile_id uuid NO",
+                "status text NO",
+                "onboarding_status text NO",
+                "video_verification_status text NO",
+                "bank_verification_status text YES",
+                "kyc_step int2 NO",
+                "rejected_reason text YES");
+    }
+
+    // Decision OQ-22: value rules live in the API only.
+    @Test
+    void caretakersHaveNoCheckConstraints() {
+        Long checkConstraintCount = jdbcTemplate.queryForObject(
+                "select count(*) from pg_constraint where conrelid = 'public.caretakers'::regclass and contype = 'c'",
+                Long.class);
+
+        assertThat(checkConstraintCount).isZero();
+    }
+
+    @Test
+    void aProfileHasAtMostOneCaretakerRow() {
+        UUID profileId = UUID.randomUUID();
+        testDb.insertProfile(profileId, "+919988776655", "CARETAKER");
+        testDb.insertOnboardingCaretaker(profileId, 2);
+
+        assertThatThrownBy(() -> testDb.insertOnboardingCaretaker(profileId, 2))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void deletingTheProfileDeletesTheCaretaker() {
+        UUID profileId = UUID.randomUUID();
+        testDb.insertProfile(profileId, "+919988776655", "CARETAKER");
+        testDb.insertOnboardingCaretaker(profileId, 2);
+
+        jdbcTemplate.update("delete from profiles where id = ?", profileId);
+
+        assertThat(testDb.count("caretakers")).isZero();
     }
 
     @Test

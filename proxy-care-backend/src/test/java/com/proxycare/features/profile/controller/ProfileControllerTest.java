@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.proxycare.features.profile.enums.PreferredLanguage;
+import com.proxycare.support.CaretakerRow;
 import com.proxycare.support.IntegrationTest;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -149,6 +150,41 @@ class ProfileControllerTest extends IntegrationTest {
         assertThat(testDb.rolesOf(userId)).containsExactlyInAnyOrder("USER", "CARETAKER");
         assertThat(testDb.phoneOf(userId)).isEqualTo(PHONE);
         assertThat(testDb.preferredLanguageOf(userId)).isEqualTo("EN");
+    }
+
+    // C1_kyc_checklist.feature "New caretaker sees the MVP checklist after OTP verification": the caretakers row
+    // starts at step 2 (mobile verified), so GET /caretakers/me/kyc has progress to show.
+    @Test
+    void putWithTheCaretakerRoleStartsTheCaretakersOnboarding() throws Exception {
+        testDb.insertAuthUser(userId);
+
+        putProfile(profileUpdateBody("CARETAKER", "EN")).andExpect(status().isOk());
+
+        CaretakerRow caretakerRow = testDb.caretakerOf(userId);
+        assertThat(caretakerRow).isNotNull();
+        assertThat(caretakerRow.status()).isEqualTo("PENDING");
+        assertThat(caretakerRow.onboardingStatus()).isEqualTo("IN_PROGRESS");
+        assertThat(caretakerRow.videoVerificationStatus()).isEqualTo("PENDING");
+        assertThat(caretakerRow.bankVerificationStatus()).isNull();
+        assertThat(caretakerRow.kycStep()).isEqualTo(2);
+        assertThat(testDb.count("caretakers")).isEqualTo(1);
+    }
+
+    // C1_kyc_checklist.feature "Checklist reflects saved progress when resuming": signing in again must not reset it.
+    @Test
+    void putWithTheCaretakerRoleAgainKeepsTheCaretakersProgress() throws Exception {
+        testDb.insertProfile(userId, PHONE, "CARETAKER");
+        UUID caretakerRowId = testDb.insertOnboardingCaretaker(userId, 3);
+
+        putProfile(profileUpdateBody("CARETAKER", "EN")).andExpect(status().isOk());
+        putProfile(profileUpdateBody("CARETAKER", "HI")).andExpect(status().isOk());
+
+        CaretakerRow caretakerRow = testDb.caretakerOf(userId);
+        assertThat(testDb.count("caretakers")).isEqualTo(1);
+        assertThat(caretakerRow.id()).isEqualTo(caretakerRowId);
+        assertThat(caretakerRow.status()).isEqualTo("PENDING");
+        assertThat(caretakerRow.onboardingStatus()).isEqualTo("IN_PROGRESS");
+        assertThat(caretakerRow.kycStep()).isEqualTo(3);
     }
 
     @Test

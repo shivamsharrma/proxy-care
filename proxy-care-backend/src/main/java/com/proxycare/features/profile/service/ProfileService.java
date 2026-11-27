@@ -3,6 +3,7 @@ package com.proxycare.features.profile.service;
 import com.proxycare.common.security.authorization.Role;
 import com.proxycare.common.security.identity.AuthenticatedUser;
 import com.proxycare.common.security.identity.ISecurityIdentityProvider;
+import com.proxycare.features.caretaker.service.ICaretakerService;
 import com.proxycare.features.profile.dto.request.ProfileUpdateRequest;
 import com.proxycare.features.profile.dto.response.ProfileResponse;
 import com.proxycare.features.profile.entity.ProfileEntity;
@@ -25,6 +26,7 @@ public class ProfileService implements IProfileService {
     private final ProfileRepository profileRepository;
     private final ProfileMapper profileMapper;
     private final ISecurityIdentityProvider securityIdentityProvider;
+    private final ICaretakerService caretakerService;
 
     @Override
     @Transactional(readOnly = true)
@@ -53,6 +55,9 @@ public class ProfileService implements IProfileService {
         profileEntity.setPreferredLanguage(profileUpdateRequest.preferredLanguage());
 
         ProfileEntity savedProfileEntity = profileRepository.save(profileEntity);
+        if (role == Role.CARETAKER) {
+            caretakerService.ensureCurrentCaretaker();
+        }
         return profileMapper.toProfileResponse(savedProfileEntity);
     }
 
