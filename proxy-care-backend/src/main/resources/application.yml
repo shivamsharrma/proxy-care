@@ -44,6 +44,23 @@ proxycare:
     key-id: ${RAZORPAY_KEY_ID:}
     key-secret: ${RAZORPAY_KEY_SECRET:}
     webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+  razorpay-ifsc:
+    base-url: https://ifsc.razorpay.com
+  # Penny drop (C5). Live mode only. Reuses the Razorpay API key; RAZORPAYX_NAME_MATCH_THRESHOLD has no default on
+  # purpose (the score's range is unconfirmed, see README).
+  razorpayx:
+    key-id: ${proxycare.razorpay.key-id}
+    key-secret: ${proxycare.razorpay.key-secret}
+    account-number: ${RAZORPAYX_ACCOUNT_NUMBER:}
+    webhook-secret: ${RAZORPAYX_WEBHOOK_SECRET:}
+    name-match-threshold: ${RAZORPAYX_NAME_MATCH_THRESHOLD}
+  bank-verification:
+    job-delay: PT15S
+    first-check-delay: 30s
+    poll-interval: 10m
+    batch-size: 20
+  crypto:
+    bank-account-encryption-key: ${BANK_ACCOUNT_ENCRYPTION_KEY:}
   google:
     maps-api-key: ${GOOGLE_MAPS_API_KEY:}
   uber:

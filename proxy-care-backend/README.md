@@ -39,9 +39,20 @@ docker compose up --build  # PostGIS + the app (profile `local`) on http://local
 | `DB_POOL_SIZE` | no (10) | Hikari max pool size |
 | `SUPABASE_URL` | yes | e.g. `https://<ref>.supabase.co`; gives the token issuer and JWKS |
 | `SPRING_PROFILES_ACTIVE` | yes | `local` or `prod` |
-| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | not yet | payments |
+| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | yes | Razorpay API key; used by the RazorpayX penny drop now, payments later |
+| `RAZORPAY_WEBHOOK_SECRET` | not yet | payments |
+| `RAZORPAYX_ACCOUNT_NUMBER` | yes | our RazorpayX business account the ₹1 penny drop is sent from |
+| `RAZORPAYX_WEBHOOK_SECRET` | yes | secret of the RazorpayX webhook (`fund_account.validation.*`) to `POST /api/v1/webhooks/razorpayx` |
+| `RAZORPAYX_NAME_MATCH_THRESHOLD` | yes, no default | lowest RazorpayX `name_match_score` accepted as a name match (see note below) |
+| `BANK_ACCOUNT_ENCRYPTION_KEY` | yes | base64 of a 32-byte AES-256 key (`openssl rand -base64 32`), one per environment; encrypts bank account numbers at rest. Losing or changing it makes stored numbers unreadable |
 | `GOOGLE_MAPS_API_KEY` | not yet | hospital search and ETA |
 | `UBER_CLIENT_ID`, `UBER_CLIENT_SECRET` | not yet | rides |
+
+**RazorpayX penny drop:** works in live mode only (RazorpayX Lite has no test mode for fund account validations), and
+every attempt sends a real ₹1. The range and meaning of `name_match_score` (0–100 or 0–1, how it is computed) are
+**not confirmed** with RazorpayX yet, so `RAZORPAYX_NAME_MATCH_THRESHOLD` has no default; confirm it before go-live.
+When a validation has no score, the entered holder name is compared with the bank's registered name after
+upper-casing, removing punctuation and collapsing spaces.
 
 The app fails to start when a required value is missing. Copy `.env.example` to `.env` for local values; never
 commit `.env`.

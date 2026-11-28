@@ -7,7 +7,11 @@ Feature: Caretaker basic information (Screen C2)
   # Source: proxy-care-api-context.md §5 "C2 Basic information"; PRD §2.1
   # Inputs: full name (as on Aadhaar)*, sex*, age* (>=18), email*, emergency contact*,
   #         residential address*, occupation (optional), marital status (Single/Married, optional).
-  # Actions: Save and continue; Save and finish later -> C1.
+  # Actions: Save and continue -> C4.
+  # DECISION (2026-11-28): there is no "Save and finish later". "Save and continue" first stores the
+  #           whole form as the caretaker's draft; the server then validates the draft. If it is valid,
+  #           the values become the saved basic information and the draft is deleted. If not, the
+  #           errors are shown and the draft is kept, so reopening the step restores what was entered.
   # MVP RULE: "Save and continue" goes to C4 Photo & identity check (C3 Aadhaar & PAN is skipped).
   # ASSUMPTION: age treated as required because it must be >=18; upper bound 70 is a placeholder.
   # ASSUMPTION: emergency contact must differ from the caretaker's own mobile; copy is placeholder.
@@ -27,7 +31,7 @@ Feature: Caretaker basic information (Screen C2)
     And I should see the optional field "Occupation"
     And I should see the optional marital status options "Single" and "Married"
     And I should see the primary button "Save and continue"
-    And I should see the text button "Save and finish later"
+    And I should not see a "Save and finish later" button
 
   @ui-state
   Scenario: Inputs open the right keyboard
@@ -66,20 +70,29 @@ Feature: Caretaker basic information (Screen C2)
     And I should see the "Photo & identity check" screen
 
   @happy-path
-  Scenario: Save and finish later keeps partial progress
-    When I enter "Anita Deshmukh" in "Full name (as on Aadhaar)"
-    And I select the sex "Female"
-    And I tap "Save and finish later"
+  Scenario: A rejected save keeps the entered values as a draft
+    Given the email "taken@example.com" is already registered to another caretaker
+    And I have filled the basic information form with valid data
+    And I have entered "Anita Deshmukh" in "Full name (as on Aadhaar)"
+    And I have entered "taken@example.com" in "Email"
+    When I tap "Save and continue"
     Then the entered values should be saved as a draft
-    And I should see the "KYC checklist" screen
     And the "Basic information" step should still be marked "Current"
 
   @happy-path
   Scenario: Resuming a draft restores entered values
-    Given I saved a basic information draft with name "Anita Deshmukh" and sex "Female"
+    Given my last "Save and continue" was rejected and kept a draft with name "Anita Deshmukh" and sex "Female"
     When I open the "Basic information" step from the checklist
     Then "Full name (as on Aadhaar)" should contain "Anita Deshmukh"
     And the sex "Female" should be selected
+
+  @happy-path
+  Scenario: A successful save removes the draft
+    Given my last "Save and continue" was rejected and kept a draft
+    When I correct the errors and tap "Save and continue"
+    Then my basic information should be saved
+    And no draft should remain
+    And I should see the "Photo & identity check" screen
 
   @ui-state
   Scenario: Save and continue is disabled until all required fields are valid
@@ -89,10 +102,6 @@ Feature: Caretaker basic information (Screen C2)
     And I should see a caption under the button explaining "1 required field left"
     When I enter "Hadapsar, Pune 411028" in "Residential address"
     Then the "Save and continue" button should be enabled
-
-  @ui-state
-  Scenario: Save and finish later is always available
-    Then the "Save and finish later" button should be enabled
 
   @negative @validation
   Scenario Outline: Missing required fields show inline errors
@@ -231,23 +240,13 @@ Feature: Caretaker basic information (Screen C2)
     And exactly one save request should be sent
 
   @navigation
-  Scenario: Back with unsaved changes asks before discarding
+  Scenario: Back with unsaved changes discards them
     Given I have entered "Anita Deshmukh" in "Full name (as on Aadhaar)"
     And I have not saved
     When I press the back button
-    Then I should see a dialog "Leave without saving?"
-    And the dialog should offer "Save and finish later" and "Discard"
-    When I choose "Discard"
     Then I should see the "KYC checklist" screen
+    And no dialog should be shown
     And no draft should be saved
-
-  @navigation
-  Scenario: Back with unsaved changes - saving from the dialog
-    Given I have entered "Anita Deshmukh" in "Full name (as on Aadhaar)"
-    When I press the back button
-    And I choose "Save and finish later" in the dialog
-    Then the entered values should be saved as a draft
-    And I should see the "KYC checklist" screen
 
   @navigation
   Scenario: Back with no changes returns to the checklist without a dialog

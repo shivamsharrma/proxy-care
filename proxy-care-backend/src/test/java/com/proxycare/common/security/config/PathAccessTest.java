@@ -2,6 +2,7 @@ package com.proxycare.common.security.config;
 
 import static com.proxycare.support.ApiErrorAssert.assertApiError;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -57,6 +58,19 @@ class PathAccessTest extends IntegrationTest {
     @Test
     void webhookPathsAreNotPublic() throws Exception {
         assertApiError(mockMvc.perform(get("/webhooks/razorpay")), 401, "UNAUTHENTICATED");
+    }
+
+    /** Reaches the controller without a token; the signature, not a token, is what it checks. */
+    @Test
+    void razorpayXWebhookIsPublicButNeedsAValidSignature() throws Exception {
+        assertApiError(
+                mockMvc.perform(post("/api/v1/webhooks/razorpayx")
+                        .header("X-Razorpay-Event-Id", "evt_test")
+                        .header("X-Razorpay-Signature", "not-a-valid-signature")
+                        .contentType("application/json")
+                        .content("{}")),
+                400,
+                "WEBHOOK_SIGNATURE_INVALID");
     }
 
     @Test

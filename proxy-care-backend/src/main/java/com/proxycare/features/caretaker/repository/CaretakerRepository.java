@@ -10,4 +10,7 @@ public interface CaretakerRepository extends JpaRepository<CaretakerEntity, UUID
     Optional<CaretakerEntity> findByProfileId(UUID profileId);
 
     boolean existsByProfileId(UUID profileId);
+
+    // Matches the caretakers_email_key index on lower(email).
+    boolean existsByEmailIgnoreCaseAndIdNot(String email, UUID id);
 }

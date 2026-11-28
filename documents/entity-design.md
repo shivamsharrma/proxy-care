@@ -138,10 +138,12 @@ create table caretakers (
   sex                       sex_type,
   age                       smallint,
   email                     text,
-  emergency_contact         text,
+  emergency_contact_country_code text,                                  -- MobileNumber, required by C2;
+  emergency_contact_number       text,                                  -- differs from the caretaker's own mobile
   residential_address       text,
   occupation                text,
   marital_status            marital_status,
+  basic_information_draft   jsonb,                                     -- C2 form as last submitted; deleted once valid
   languages                 text[] not null default '{}',              -- e.g. {hi,en,pa}
   -- C4 Photo & identity. The app uploads the photo to Supabase Storage; the backend stores
   -- only the file record. Video KYC is not run in the MVP: the caretaker picks a slot and an

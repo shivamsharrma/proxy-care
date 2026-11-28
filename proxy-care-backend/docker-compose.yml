@@ -31,5 +31,13 @@ services:
       SUPABASE_URL: ${SUPABASE_URL:-http://localhost:54321}
       SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
       RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-local-webhook-secret}
+      # Fake local values so the app starts; the penny drop can't reach RazorpayX with them (live mode only).
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-rzp_local_fake}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-local-key-secret}
+      RAZORPAYX_ACCOUNT_NUMBER: ${RAZORPAYX_ACCOUNT_NUMBER:-0000000000000000}
+      RAZORPAYX_WEBHOOK_SECRET: ${RAZORPAYX_WEBHOOK_SECRET:-local-razorpayx-webhook-secret}
+      RAZORPAYX_NAME_MATCH_THRESHOLD: ${RAZORPAYX_NAME_MATCH_THRESHOLD:-70}
+      # base64 of "local-only-bank-account-key-32b!"; never use outside local.
+      BANK_ACCOUNT_ENCRYPTION_KEY: ${BANK_ACCOUNT_ENCRYPTION_KEY:-bG9jYWwtb25seS1iYW5rLWFjY291bnQta2V5LTMyYiE=}
     ports:
       - "8080:8080"

@@ -3,6 +3,7 @@ package com.proxycare.common.exception.handler;
 import com.proxycare.common.api.ApiError;
 import com.proxycare.common.exception.AppException;
 import com.proxycare.common.exception.ErrorCode;
+import com.proxycare.common.exception.FieldValidationException;
 import com.proxycare.common.security.SecurityMessages;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -52,6 +53,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleAppException(AppException ex) {
         logAppException(ex);
         return respond(ex.getErrorCode(), ex.getMessage());
+    }
+
+    @ExceptionHandler(FieldValidationException.class)
+    public ResponseEntity<ApiError> handleFieldValidation(FieldValidationException ex) {
+        return respond(ErrorCode.VALIDATION_FAILED, VALIDATION_FAILED, ex.getFieldErrors());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

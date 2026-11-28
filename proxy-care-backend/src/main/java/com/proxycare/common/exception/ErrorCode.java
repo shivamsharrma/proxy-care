@@ -36,6 +36,18 @@ public enum ErrorCode {
 
     // Caretaker
     CARETAKER_NOT_FOUND(HttpStatus.NOT_FOUND),
+    EMAIL_ALREADY_IN_USE(HttpStatus.CONFLICT),
+    BASIC_INFORMATION_DRAFT_NOT_FOUND(HttpStatus.NOT_FOUND),
+    KYC_STEP_LOCKED(HttpStatus.CONFLICT),
+    KYC_NOT_SUBMITTED(HttpStatus.CONFLICT),
+    PHOTO_PATH_NOT_OWNED(HttpStatus.BAD_REQUEST),
+    PAYOUT_ACCOUNT_NOT_FOUND(HttpStatus.NOT_FOUND),
+
+    // Bank
+    IFSC_NOT_FOUND(HttpStatus.NOT_FOUND),
+
+    // Webhooks
+    WEBHOOK_SIGNATURE_INVALID(HttpStatus.BAD_REQUEST),
 
     // External service errors
     EXTERNAL_SERVICE_ERROR(HttpStatus.BAD_GATEWAY),

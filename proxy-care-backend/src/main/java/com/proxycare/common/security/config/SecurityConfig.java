@@ -5,6 +5,7 @@ import com.proxycare.common.security.handler.RestAuthenticationEntryPoint;
 import com.proxycare.common.security.jwt.SupabaseJwtAuthenticationConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -29,6 +30,8 @@ public class SecurityConfig {
     private static final String[] API_DOCS_PATHS = {"/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**"};
     private static final String ERROR_PATH = "/error";
     private static final String API_PATHS = "/api/**";
+    // Vendors call these without a token; each controller verifies the vendor's signature on the raw body instead.
+    private static final String[] WEBHOOK_PATHS = {"/api/v1/webhooks/razorpayx"};
 
     @Bean
     SecurityFilterChain securityFilterChain(
@@ -56,7 +59,7 @@ public class SecurityConfig {
     }
 
     /**
-     * Public: health/info, API docs and the error page. {@code /api/**} needs a token. <b>Everything else is
+     * Public: health/info, API docs, the error page and the signed vendor webhooks. {@code /api/**} needs a token. <b>Everything else is
      * denied</b>, so a new controller can never become public by accident.
      */
     private static void authorizePaths(
@@ -66,6 +69,7 @@ public class SecurityConfig {
                 .requestMatchers(HEALTH_PATHS).permitAll()
                 .requestMatchers(API_DOCS_PATHS).permitAll()
                 .requestMatchers(ERROR_PATH).permitAll()
+                .requestMatchers(HttpMethod.POST, WEBHOOK_PATHS).permitAll()
                 .requestMatchers(API_PATHS).authenticated()
                 .anyRequest().denyAll();
     }

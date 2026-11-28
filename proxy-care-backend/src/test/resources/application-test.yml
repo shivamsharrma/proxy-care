@@ -11,6 +11,20 @@ proxycare:
     key-id: rzp_test_fake
     key-secret: test-key-secret
     webhook-secret: test-webhook-secret
+  # Port 9 (discard) on localhost: nothing answers, so no test can reach a real vendor by accident.
+  razorpay-ifsc:
+    base-url: http://localhost:9
+  razorpayx:
+    base-url: http://localhost:9
+    account-number: "0000000000000000"
+    webhook-secret: test-razorpayx-webhook-secret
+    name-match-threshold: 70
+  # Clearly fake: base64 of "test-only-bank-account-key-32b!!".
+  crypto:
+    bank-account-encryption-key: dGVzdC1vbmx5LWJhbmstYWNjb3VudC1rZXktMzJiISE=
+  # Jobs don't run on a timer in tests; a test calls the job directly.
+  scheduling:
+    enabled: false
   google:
     maps-api-key: test-maps-key
   uber:
